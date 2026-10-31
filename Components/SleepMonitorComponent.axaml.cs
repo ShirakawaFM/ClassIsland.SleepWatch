@@ -27,6 +27,10 @@ public partial class SleepMonitorComponent : ComponentBase<SleepMonitorSettings>
     private DetectionEngine? _engine;
     private bool _bound;
 
+    // 静默模式开关缓存：每 5 秒重新读一次配置，别在 300ms 的刷新里反复读盘
+    private bool _silent;
+    private DateTime _silentCheckedAt = DateTime.MinValue;
+
     public SleepMonitorComponent()
     {
         InitializeComponent();
@@ -68,7 +72,8 @@ public partial class SleepMonitorComponent : ComponentBase<SleepMonitorSettings>
 
         var engine = _engine;
 
-        LessonBridge.Attach(
+        LessonBridge.Subscribe(
+            "component",
             () =>
             {
                 var cfg = SettingsStore.Load();
@@ -108,6 +113,15 @@ public partial class SleepMonitorComponent : ComponentBase<SleepMonitorSettings>
         var compact = settings?.Compact ?? false;
         var showNumbers = settings?.ShowNumbers ?? true;
         var showDetail = settings?.ShowDetail ?? true;
+
+        if (SilentMode)
+        {
+            // 静默检测：课堂上不显示人数，只在结束时报账
+            SetDot("#B0A99F");
+            _mainText.Text = _engine.IsRunning ? "静默记录中" : "监测未启动";
+            _subText.Text = showDetail && _engine.IsRunning ? "下课出总结" : "";
+            return;
+        }
 
         if (!_engine.IsRunning)
         {
@@ -160,6 +174,29 @@ public partial class SleepMonitorComponent : ComponentBase<SleepMonitorSettings>
         _subText.Text = showDetail && !compact
             ? $"在座 {snapshot.Present}/{snapshot.ClassSize}"
             : "";
+    }
+
+    /// <summary>静默模式：把实时数字藏起来，数据照常记。</summary>
+    private bool SilentMode
+    {
+        get
+        {
+            if ((DateTime.Now - _silentCheckedAt).TotalSeconds > 5)
+            {
+                _silentCheckedAt = DateTime.Now;
+
+                try
+                {
+                    _silent = SummarySettingsStore.Load().SilentMode;
+                }
+                catch
+                {
+                    _silent = false;
+                }
+            }
+
+            return _silent;
+        }
     }
 
     private void SetDot(string hex)

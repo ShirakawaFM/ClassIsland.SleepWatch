@@ -122,6 +122,16 @@
             <CheckBox x:Name="AutoStartBox" Content="上课自动开始监测" />
             <CheckBox x:Name="AutoStopBox" Content="下课 / 放学自动停止" />
 
+            <!-- ================= 课后总结 ================= -->
+            <TextBlock Text="课后总结" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <TextBlock Text="检测在后台安静记账：谁睡着了、睡了多久、什么时候醒的。下课铃一响自动弹出总结窗口，按天翻页看历史。窗口里能改配色和显示项。"
+                       FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+            <CheckBox x:Name="SilentBox" Content="静默检测（主界面不显示人数，只在课后出报告）" />
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button x:Name="SummaryButton" Content="打开课后总结" />
+                <Button x:Name="SampleSummaryButton" Content="看示例效果" />
+            </StackPanel>
+
             <TextBlock Text="提示：拖动滑动条会自动保存，但要生效还得点【重启监测】。灯光变化大或者逆光时，回来对照实时画面重调一次睁眼阈值。"
                        FontSize="12" Opacity="0.55" TextWrapping="Wrap" Margin="0,4,0,0" />
 

@@ -63,6 +63,9 @@ public class Plugin : PluginBase
             // 目录建不出来不影响加载，后面写配置时会再报错
         }
 
+        // 课后总结的调度器要在服务注册之后挂上：它监听下课铃，负责结账和弹窗
+        SummaryHost.Attach();
+
         services.AddSingleton<DetectionEngine>();
         services.AddSettingsPage<SleepWatchSettingsPage>();
         services.AddComponent<SleepMonitorComponent, SleepMonitorComponentSettingsControl>();

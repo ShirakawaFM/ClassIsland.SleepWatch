@@ -45,6 +45,9 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
     private Image _previewImage = null!;
     private TextBlock _previewPlaceholder = null!;
     private TextBlock _previewInfo = null!;
+    private CheckBox _silentBox = null!;
+    private Button _summaryButton = null!;
+    private Button _sampleSummaryButton = null!;
 
     private readonly DispatcherTimer _timer;
     private readonly DispatcherTimer _saveTimer;
@@ -120,6 +123,9 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         _previewImage = this.FindControl<Image>("PreviewImage")!;
         _previewPlaceholder = this.FindControl<TextBlock>("PreviewPlaceholder")!;
         _previewInfo = this.FindControl<TextBlock>("PreviewInfo")!;
+        _silentBox = this.FindControl<CheckBox>("SilentBox")!;
+        _summaryButton = this.FindControl<Button>("SummaryButton")!;
+        _sampleSummaryButton = this.FindControl<Button>("SampleSummaryButton")!;
     }
 
     private void LoadValues()
@@ -137,6 +143,15 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         _eyeSlider.Value = Clamp(_eyeSlider, s.EyeDarkRatio);
         _autoStartBox.IsChecked = s.AutoStartOnClass;
         _autoStopBox.IsChecked = s.AutoStopOnBreak;
+
+        try
+        {
+            _silentBox.IsChecked = SummarySettingsStore.Load().SilentMode;
+        }
+        catch
+        {
+            _silentBox.IsChecked = false;
+        }
 
         SyncLabels();
 
@@ -187,6 +202,11 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
 
         _autoStartBox.Click += (_, _) => Commit();
         _autoStopBox.Click += (_, _) => Commit();
+
+        _silentBox.Click += (_, _) => CommitSilent();
+
+        _summaryButton.Click += (_, _) => SummaryHost.ShowNow(sample: false);
+        _sampleSummaryButton.Click += (_, _) => SummaryHost.ShowNow(sample: true);
 
         _previewToggle.Click += (_, _) =>
         {
@@ -254,6 +274,24 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         SettingsStore.Save(s);
 
         _statusText.Text = "已保存。改动需要点【重启监测】才会生效。";
+    }
+
+    /// <summary>静默开关存在 summary.json 里，跟检测参数分开。</summary>
+    private void CommitSilent()
+    {
+        if (_loading) return;
+
+        try
+        {
+            var cfg = SummarySettingsStore.Load();
+            cfg.SilentMode = _silentBox.IsChecked == true;
+            SummarySettingsStore.Save(cfg);
+            _statusText.Text = cfg.SilentMode ? "已开启静默检测：主界面不再显示人数。" : "已关闭静默检测。";
+        }
+        catch
+        {
+            // 写不进去就维持原样
+        }
     }
 
     private DetectionEngine? Engine()
@@ -366,7 +404,8 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         {
             engine.Start(SettingsStore.Load());
 
-            LessonBridge.Attach(
+            LessonBridge.Subscribe(
+                "engine",
                 () =>
                 {
                     if (SettingsStore.Load().AutoStartOnClass && !engine.IsRunning)

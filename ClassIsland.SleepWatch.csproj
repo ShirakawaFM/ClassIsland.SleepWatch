@@ -11,7 +11,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <AssemblyName>ClassIsland.SleepWatch</AssemblyName>
     <RootNamespace>ClassIsland.SleepWatch</RootNamespace>
-    <Version>1.1.0.0</Version>
+    <Version>1.2.0.0</Version>
     <AssemblyTitle>SleepWatch 课堂睡意监测</AssemblyTitle>
     <Product>SleepWatch</Product>
     <Company>ShirakawaFM</Company>
@@ -20,6 +20,8 @@
     <Description>用教室摄像头识别趴桌、长时间没睁眼的学生，在主界面显示"疑似睡着"人数。</Description>
     <RepositoryUrl>https://github.com/ShirakawaFM/ClassIsland.SleepWatch</RepositoryUrl>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <!-- 像素背景直接往 WriteableBitmap 的帧缓冲里写，省掉上万次托管调用 -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
     <!-- 打包 cipx 请用项目根目录的 pack.cmd，不要直接 -p:CreateCipx=true。
          原因：SDK 的 targets 会强制把 PowershellBinaryName 重置成 pwsh（PowerShell Core），

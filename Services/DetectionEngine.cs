@@ -331,6 +331,16 @@ public sealed class DetectionEngine : IDisposable
 
         var report = _tracker.Update(persons, now, _settings);
 
+        // 静默记账：把"谁睡着了、谁醒了"喂给账本，课后总结全靠它
+        try
+        {
+            SleepLedger.Instance.Observe(report, now, _settings.ClassSize);
+        }
+        catch
+        {
+            // 记账出错不能停掉检测
+        }
+
         Snapshot = BuildSnapshot(report, now);
 
         // 帧率统计
