@@ -43,6 +43,10 @@
     <None Update="README.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- 插件市场列表和插件详情页都按这个文件名找图标 -->
+    <None Update="icon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <!-- 模型随插件一起分发，部署时不需要联网下载 -->
     <None Update="models\**\*.onnx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
