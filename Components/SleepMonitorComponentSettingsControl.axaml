@@ -1,0 +1,36 @@
+<ci:ComponentBase
+    x:Class="ClassIsland.SleepWatch.Components.SleepMonitorComponentSettingsControl"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ci="http://classisland.tech/schemas/xaml/core"
+    xmlns:local="using:ClassIsland.SleepWatch.Components"
+    x:TypeArguments="local:SleepMonitorSettings">
+    <StackPanel Spacing="14" Margin="4" MaxWidth="580">
+
+        <TextBlock Text="显示方式" FontSize="14" FontWeight="SemiBold" />
+
+        <StackPanel Spacing="2">
+            <CheckBox x:Name="CompactBox" Content="紧凑模式" />
+            <TextBlock Text="只显示「睡 3」这样一个数字，主界面空间紧张时用。"
+                       Margin="26,0,0,0" FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <StackPanel Spacing="2">
+            <CheckBox x:Name="NumbersBox" Content="显示具体人数" />
+            <TextBlock Text="关掉后不显示人数，只显示「状态不错 / 有点乏了 / 倒下一片」这样的定性判断。"
+                       Margin="26,0,0,0" FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <StackPanel Spacing="2">
+            <CheckBox x:Name="DetailBox" Content="显示「在座 / 应到」副标题" />
+            <TextBlock Text="在主文字后面补一行小字，例如「在座 38/45」。"
+                       Margin="26,0,0,0" FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <Border BorderThickness="1" BorderBrush="#33888888" CornerRadius="6" Padding="10">
+            <TextBlock Text="这个组件如果是投在教室大屏上的，建议关掉「显示具体人数」。数字一旦被学生看到，他们很快会学会躲镜头角度、用书挡脸，数据反而更不准。"
+                       FontSize="12" Opacity="0.7" TextWrapping="Wrap" />
+        </Border>
+
+    </StackPanel>
+</ci:ComponentBase>
