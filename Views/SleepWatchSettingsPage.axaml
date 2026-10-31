@@ -1,0 +1,152 @@
+<ci:SettingsPageBase
+    x:Class="ClassIsland.SleepWatch.Views.SleepWatchSettingsPage"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ci="http://classisland.tech/schemas/xaml/core">
+    <ScrollViewer>
+        <StackPanel Margin="24" Spacing="18" MaxWidth="820" HorizontalAlignment="Left">
+
+            <TextBlock Text="SleepWatch 睡意监测" FontSize="20" FontWeight="SemiBold" />
+            <TextBlock Text="原理：持续检测到“睁眼”就算清醒；连续设定时长没抓到睁眼、或头一直低着，就算疑似睡着。不需要标定，装上就能跑。纯娱乐用途，数字别当真。"
+                       FontSize="12" Opacity="0.65" TextWrapping="Wrap" />
+
+            <!-- ================= 实时画面 ================= -->
+            <TextBlock Text="实时画面" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <Border BorderThickness="1" BorderBrush="#33888888" CornerRadius="6" Background="#1A000000" Padding="8">
+                <StackPanel Spacing="8">
+                    <Grid Height="320">
+                        <Image x:Name="PreviewImage" Stretch="Uniform" />
+                        <TextBlock x:Name="PreviewPlaceholder"
+                                   Text="监测未运行，先点下面的【重启监测】"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   FontSize="13" Opacity="0.55" TextWrapping="Wrap" />
+                    </Grid>
+                    <TextBlock x:Name="PreviewInfo" Text="—" FontSize="12" Opacity="0.8" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+            <StackPanel Orientation="Horizontal" Spacing="16">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Border Width="10" Height="10" CornerRadius="2" Background="#78DC78" VerticalAlignment="Center" />
+                    <TextBlock Text="清醒" FontSize="12" Opacity="0.7" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Border Width="10" Height="10" CornerRadius="2" Background="#F05050" VerticalAlignment="Center" />
+                    <TextBlock Text="疑似睡着" FontSize="12" Opacity="0.7" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Border Width="10" Height="10" CornerRadius="2" Background="#B4B45A" VerticalAlignment="Center" />
+                    <TextBlock Text="判断不了（背对 / 被挡 / 太远）" FontSize="12" Opacity="0.7" VerticalAlignment="Center" />
+                </StackPanel>
+            </StackPanel>
+            <CheckBox x:Name="PreviewToggle" Content="显示实时画面（关掉可省一点 CPU）" IsChecked="True" />
+
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button x:Name="StartButton" Content="重启监测" />
+                <Button x:Name="StopButton" Content="停止" />
+                <Button x:Name="ResetButton" Content="清空所有人状态" />
+                <Button x:Name="FolderButton" Content="打开配置目录" />
+            </StackPanel>
+
+            <Border BorderThickness="1" BorderBrush="#33888888" CornerRadius="6" Padding="12">
+                <TextBlock x:Name="StatusText" Text="就绪" FontSize="12" TextWrapping="Wrap" />
+            </Border>
+
+            <!-- ================= 摄像头 ================= -->
+            <TextBlock Text="摄像头" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="视频源" Width="110" VerticalAlignment="Center" />
+                <TextBox x:Name="SourceBox" Width="300"
+                         PlaceholderText="0 = 本机摄像头；也可填 rtsp:// 或 http:// 地址" />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="处理帧率" Width="110" VerticalAlignment="Center" />
+                <Slider x:Name="FpsSlider" Width="260" VerticalAlignment="Center"
+                        Minimum="1" Maximum="15" TickFrequency="1" IsSnapToTickEnabled="True" />
+                <TextBlock x:Name="FpsValue" Text="4" Width="46" VerticalAlignment="Center"
+                           FontWeight="SemiBold" TextAlignment="Right" />
+                <TextBlock Text="帧/秒，4 已经够用" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="推理宽度" Width="110" VerticalAlignment="Center" />
+                <Slider x:Name="WidthSlider" Width="260" VerticalAlignment="Center"
+                        Minimum="320" Maximum="1920" TickFrequency="80" IsSnapToTickEnabled="True" />
+                <TextBlock x:Name="WidthValue" Text="640" Width="46" VerticalAlignment="Center"
+                           FontWeight="SemiBold" TextAlignment="Right" />
+                <TextBlock Text="像素，卡就调小" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- ================= 班级 ================= -->
+            <TextBlock Text="班级" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <TextBlock Text="应到人数只用来算“画面里没找到的人”，填个大概就行。"
+                       FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="应到人数" Width="110" VerticalAlignment="Center" />
+                <Slider x:Name="ClassSizeSlider" Width="260" VerticalAlignment="Center"
+                        Minimum="1" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" />
+                <TextBlock x:Name="ClassSizeValue" Text="45" Width="46" VerticalAlignment="Center"
+                           FontWeight="SemiBold" TextAlignment="Right" />
+                <TextBlock Text="人" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- ================= 判定参数 ================= -->
+            <TextBlock Text="判定参数" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="睡眠判定秒数" Width="110" VerticalAlignment="Center" />
+                <Slider x:Name="SleepSlider" Width="260" VerticalAlignment="Center"
+                        Minimum="2" Maximum="120" TickFrequency="1" IsSnapToTickEnabled="True" />
+                <TextBlock x:Name="SleepValue" Text="8" Width="46" VerticalAlignment="Center"
+                           FontWeight="SemiBold" TextAlignment="Right" />
+                <TextBlock Text="秒。核心参数：几秒没睁眼就算睡着，8 比较平衡" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="在座记忆" Width="110" VerticalAlignment="Center" />
+                <Slider x:Name="PresenceSlider" Width="260" VerticalAlignment="Center"
+                        Minimum="1" Maximum="60" TickFrequency="1" IsSnapToTickEnabled="True" />
+                <TextBlock x:Name="PresenceValue" Text="6" Width="46" VerticalAlignment="Center"
+                           FontWeight="SemiBold" TextAlignment="Right" />
+                <TextBlock Text="分钟。多久没看到脸就不再算“在座”" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="睁眼阈值" Width="110" VerticalAlignment="Center" />
+                <Slider x:Name="EyeSlider" Width="260" VerticalAlignment="Center"
+                        Minimum="0.02" Maximum="0.5" TickFrequency="0.01" IsSnapToTickEnabled="True" />
+                <TextBlock x:Name="EyeValue" Text="0.10" Width="46" VerticalAlignment="Center"
+                           FontWeight="SemiBold" TextAlignment="Right" />
+                <TextBlock Text="越大越难判成睁眼。对照上面的实时画面调" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- ================= 自动化 ================= -->
+            <TextBlock Text="自动化" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <CheckBox x:Name="AutoStartBox" Content="上课自动开始监测" />
+            <CheckBox x:Name="AutoStopBox" Content="下课 / 放学自动停止" />
+
+            <TextBlock Text="提示：拖动滑动条会自动保存，但要生效还得点【重启监测】。灯光变化大或者逆光时，回来对照实时画面重调一次睁眼阈值。"
+                       FontSize="12" Opacity="0.55" TextWrapping="Wrap" Margin="0,4,0,0" />
+
+            <!-- ================= 关于 ================= -->
+            <TextBlock Text="关于" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <Border BorderThickness="1" BorderBrush="#33888888" CornerRadius="6" Padding="14">
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="SleepWatch 课堂睡意监测" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <Border Background="#22888888" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                            <TextBlock x:Name="VersionText" Text="v1.1.0" FontSize="11" Opacity="0.8" />
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Text="作者：ShirakawaFM / 白川方明" FontSize="12" Opacity="0.75" />
+                    <TextBlock Text="接一个教室摄像头，反推画面里有几个人疑似睡着。画面只在本机内存里处理 —— 不存盘、不上传、不做人脸识别，输出只有人数。"
+                               FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,2,0,0">
+                        <Button x:Name="RepoButton" Content="项目主页" />
+                        <Button x:Name="LicenseButton" Content="MIT 许可" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="纯娱乐向插件，数字仅供参考。"
+                       FontSize="12" Opacity="0.45" TextWrapping="Wrap" Margin="0,2,0,14" />
+        </StackPanel>
+    </ScrollViewer>
+</ci:SettingsPageBase>

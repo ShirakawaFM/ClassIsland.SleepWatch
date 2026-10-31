@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <UseWPF>true</UseWPF>
+    <EnableDynamicLoading>True</EnableDynamicLoading>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <PlatformTarget>x64</PlatformTarget>
+    <AssemblyName>ClassIsland.SleepWatch</AssemblyName>
+    <RootNamespace>ClassIsland.SleepWatch</RootNamespace>
+    <Version>1.1.0.0</Version>
+    <AssemblyTitle>SleepWatch 课堂睡意监测</AssemblyTitle>
+    <Product>SleepWatch</Product>
+    <Company>ShirakawaFM</Company>
+    <Authors>ShirakawaFM / 白川方明</Authors>
+    <Copyright>© 2026 ShirakawaFM / 白川方明</Copyright>
+    <Description>用教室摄像头识别趴桌、长时间没睁眼的学生，在主界面显示"疑似睡着"人数。</Description>
+    <RepositoryUrl>https://github.com/ShirakawaFM/ClassIsland.SleepWatch</RepositoryUrl>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+
+    <!-- 打包 cipx 请用项目根目录的 pack.cmd，不要直接 -p:CreateCipx=true。
+         原因：SDK 的 targets 会强制把 PowershellBinaryName 重置成 pwsh（PowerShell Core），
+         写在 csproj 里会被覆盖，只能通过命令行全局属性传进去。 -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClassIsland.PluginSdk" Version="2.1.1.1">
+      <ExcludeAssets>runtime; native</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="OpenCvSharp4" Version="4.9.0.20240103" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.9.0.20240103" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="manifest.yml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="README.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- 模型随插件一起分发，部署时不需要联网下载 -->
+    <None Update="models\**\*.onnx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!-- 打包前剔除 x86 原生库：项目只编译 x64，win-x86 那两个 DLL 有 65MB，纯属白白撑大插件包 -->
+  <Target Name="PruneX86Runtime" BeforeTargets="CreateCipx" Condition="'$(CreateCipx)' == 'true'">
+    <RemoveDir Directories="$(OutputPath)runtimes\win-x86" />
+    <Message Text="已移除 runtimes\win-x86" Importance="high" />
+  </Target>
+
+</Project>
