@@ -215,6 +215,10 @@
 - **人数变化曲线** —— 一列一列的像素柱，20 秒一根，峰值不会因为降采样被抹平
 - **趣味记录 20 条** —— 见下
 
+<img src="docs/summary-sample.png" alt="课后总结窗口：五个指标、人数变化曲线、右侧一列趣味记录，背景是流动的像素" width="100%" />
+
+<div align="center"><sub>图里的数字来自内置示例数据，不是真实班级</sub></div>
+
 ### 趣味记录是怎么来的
 
 不是随机文案，全部由这堂课的数据现算，算不出来就不写。比如：
@@ -249,6 +253,8 @@
 - 像素块大小、流动动画开关
 
 所有改动即时生效，写进 `summary.json`；历史存在 `history.json`，保留 120 天。
+
+<img src="docs/summary-config.png" alt="配置抽屉：显示项勾选、配色预设与十六进制颜色输入、像素大小" width="100%" />
 
 ### 两个刻意的选择
 
@@ -378,6 +384,7 @@ ClassIsland.SleepWatch/
 ├─ manifest.yml                 插件清单（id / apiVersion / 作者）
 ├─ Plugin.cs                    入口：注册组件、设置页、引擎
 ├─ assets/                      README 用的动态 SVG（banner / flow / divider / footer）
+├─ docs/                        总结窗口的界面截图（示例数据）
 ├─ models/yolov8n-pose.onnx     姿态模型，随插件分发
 ├─ Controls/
 │  ├─ PixelFlowBackground.cs    像素流动背景（小位图 + 最近邻放大 + 整数运算）
