@@ -1,0 +1,13 @@
+# 构建产物
+bin/
+obj/
+cipx/
+
+# VS / Rider
+.vs/
+.idea/
+*.user
+*.suo
+
+# 模型体积大，如果不打算跟踪可以取消下一行注释
+# models/*.onnx
