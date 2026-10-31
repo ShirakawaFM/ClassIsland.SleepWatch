@@ -142,12 +142,11 @@
 
 **前置条件：ClassIsland 2.1.1.1 或更高。** 插件按 `apiVersion 2.1.1.1` / .NET 10 编译，1.x 的加载器会直接拒收，而且不给任何提示。
 
-最省事的是从插件市场装；也可以到 [Releases](../../releases) 下 `ClassIsland.SleepWatch.cipx`（约 49 MB，含姿态模型）手动装：
+从 [Releases](../../releases) 下载 `ClassIsland.SleepWatch.cipx`（约 49 MB，含姿态模型），任选一种装法：
 
 | 方式 | 步骤 | 适合 |
 | --- | --- | --- |
-| **插件市场** | 应用设置 → 插件 → 插件市场，搜「SleepWatch」 | 最省事 |
-| **拖进去** | 把 `.cipx` 直接拖到 ClassIsland 主窗口上 | 包已经下好了 |
+| **拖进去** | 把 `.cipx` 直接拖到 ClassIsland 主窗口上 | 最省事 |
 | **从本地装** | 应用设置 → 插件 → 从本地安装 → 选中文件 | 常规 |
 | **手动解压** | 关掉 ClassIsland，用 7-Zip 解到 `data/Plugins/classisland.sleepwatch/` | 排查问题 |
 
