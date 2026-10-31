@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-label="SleepWatch 数据流：摄像头 → 抽帧 → 姿态推理 → 状态机 → 主界面">
+  <title>SleepWatch 数据流</title>
+  <defs>
+    <linearGradient id="fbg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#060B12"/>
+      <stop offset="1" stop-color="#04121A"/>
+    </linearGradient>
+    <linearGradient id="c1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2BE8C4"/><stop offset="1" stop-color="#0E6C7C"/></linearGradient>
+    <linearGradient id="c2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4CB8FF"/><stop offset="1" stop-color="#0E4A7C"/></linearGradient>
+    <linearGradient id="c3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8B7CFF"/><stop offset="1" stop-color="#3A2E7C"/></linearGradient>
+    <linearGradient id="c4" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB347"/><stop offset="1" stop-color="#7C5410"/></linearGradient>
+    <linearGradient id="c5" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF6B78"/><stop offset="1" stop-color="#7C1F2A"/></linearGradient>
+  </defs>
+
+  <rect width="1280" height="420" fill="url(#fbg)"/>
+  <rect width="1280" height="420" fill="none" stroke="#132A3B" stroke-width="2"/>
+
+  <text x="36" y="38" fill="#5FDDC2" font-family="Consolas, monospace" font-size="15" letter-spacing="4">PIPELINE / 每帧约 250 ms</text>
+
+  <g font-family="'PingFang SC', 'Microsoft YaHei', sans-serif">
+    <g>
+      <rect x="36" y="62" width="272" height="104" rx="14" fill="#0A1A26" stroke="#1C4C5E"/>
+      <rect x="36" y="62" width="272" height="104" rx="14" fill="none" stroke="#2BE8C4" stroke-width="1.5" opacity="0.3">
+        <animate attributeName="opacity" values="0.12;0.9;0.12" dur="6.4s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="36" y="62" width="4" height="104" rx="2" fill="url(#c1)"/>
+      <text x="60" y="98" fill="#6FB8C9" font-family="Consolas, monospace" font-size="13">01</text>
+      <text x="60" y="126" fill="#EAF7FF" font-size="19" font-weight="700">摄像头</text>
+      <text x="60" y="150" fill="#7E97B4" font-size="13.5">本地 USB / RTSP / HTTP 流</text>
+    </g>
+
+    <g>
+      <rect x="348" y="62" width="272" height="104" rx="14" fill="#0A1A26" stroke="#1C4C5E"/>
+      <rect x="348" y="62" width="272" height="104" rx="14" fill="none" stroke="#4CB8FF" stroke-width="1.5" opacity="0.3">
+        <animate attributeName="opacity" values="0.12;0.9;0.12" dur="6.4s" begin="0.8s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="348" y="62" width="4" height="104" rx="2" fill="url(#c2)"/>
+      <text x="372" y="98" fill="#6FB8C9" font-family="Consolas, monospace" font-size="13">02</text>
+      <text x="372" y="126" fill="#EAF7FF" font-size="19" font-weight="700">抽帧 + 缩放</text>
+      <text x="372" y="150" fill="#7E97B4" font-size="13.5">4 FPS，推理宽度 640</text>
+    </g>
+
+    <g>
+      <rect x="660" y="62" width="272" height="104" rx="14" fill="#0A1A26" stroke="#1C4C5E"/>
+      <rect x="660" y="62" width="272" height="104" rx="14" fill="none" stroke="#8B7CFF" stroke-width="1.5" opacity="0.3">
+        <animate attributeName="opacity" values="0.12;0.9;0.12" dur="6.4s" begin="1.6s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="660" y="62" width="4" height="104" rx="2" fill="url(#c3)"/>
+      <text x="684" y="98" fill="#6FB8C9" font-family="Consolas, monospace" font-size="13">03</text>
+      <text x="684" y="126" fill="#EAF7FF" font-size="19" font-weight="700">YOLOv8n-pose</text>
+      <text x="684" y="150" fill="#7E97B4" font-size="13.5">人体框 + 17 个关键点</text>
+    </g>
+
+    <g>
+      <rect x="972" y="62" width="272" height="104" rx="14" fill="#0A1A26" stroke="#1C4C5E"/>
+      <rect x="972" y="62" width="272" height="104" rx="14" fill="none" stroke="#FFB347" stroke-width="1.5" opacity="0.3">
+        <animate attributeName="opacity" values="0.12;0.9;0.12" dur="6.4s" begin="2.4s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="972" y="62" width="4" height="104" rx="2" fill="url(#c4)"/>
+      <text x="996" y="98" fill="#6FB8C9" font-family="Consolas, monospace" font-size="13">04</text>
+      <text x="996" y="126" fill="#EAF7FF" font-size="19" font-weight="700">单帧判定</text>
+      <text x="996" y="150" fill="#7E97B4" font-size="13.5">低头落差 ÷ 肩宽 · 眼部暗像素</text>
+    </g>
+
+    <g>
+      <rect x="972" y="252" width="272" height="104" rx="14" fill="#0A1A26" stroke="#1C4C5E"/>
+      <rect x="972" y="252" width="272" height="104" rx="14" fill="none" stroke="#FF6B78" stroke-width="1.5" opacity="0.3">
+        <animate attributeName="opacity" values="0.12;0.9;0.12" dur="6.4s" begin="3.2s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="972" y="252" width="4" height="104" rx="2" fill="url(#c5)"/>
+      <text x="996" y="288" fill="#6FB8C9" font-family="Consolas, monospace" font-size="13">05</text>
+      <text x="996" y="316" fill="#EAF7FF" font-size="19" font-weight="700">轨迹关联</text>
+      <text x="996" y="340" fill="#7E97B4" font-size="13.5">前后帧 IoU 匹配，不认身份</text>
+    </g>
+
+    <g>
+      <rect x="660" y="252" width="272" height="104" rx="14" fill="#0A1A26" stroke="#1C4C5E"/>
+      <rect x="660" y="252" width="272" height="104" rx="14" fill="none" stroke="#2BE8C4" stroke-width="1.5" opacity="0.3">
+        <animate attributeName="opacity" values="0.12;0.9;0.12" dur="6.4s" begin="4s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="660" y="252" width="4" height="104" rx="2" fill="url(#c1)"/>
+      <text x="684" y="288" fill="#6FB8C9" font-family="Consolas, monospace" font-size="13">06</text>
+      <text x="684" y="316" fill="#EAF7FF" font-size="19" font-weight="700">每人一套计时器</text>
+      <text x="684" y="340" fill="#7E97B4" font-size="13.5">睁眼即清醒，低头秒数累加</text>
+    </g>
+
+    <g>
+      <rect x="348" y="252" width="272" height="104" rx="14" fill="#0A1A26" stroke="#1C4C5E"/>
+      <rect x="348" y="252" width="272" height="104" rx="14" fill="none" stroke="#4CB8FF" stroke-width="1.5" opacity="0.3">
+        <animate attributeName="opacity" values="0.12;0.9;0.12" dur="6.4s" begin="4.8s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="348" y="252" width="4" height="104" rx="2" fill="url(#c2)"/>
+      <text x="372" y="288" fill="#6FB8C9" font-family="Consolas, monospace" font-size="13">07</text>
+      <text x="372" y="316" fill="#EAF7FF" font-size="19" font-weight="700">统计汇总</text>
+      <text x="372" y="340" fill="#7E97B4" font-size="13.5">在座 / 疑似睡着 / 判断不了</text>
+    </g>
+
+    <g>
+      <rect x="36" y="252" width="272" height="104" rx="14" fill="#0A1A26" stroke="#1C4C5E"/>
+      <rect x="36" y="252" width="272" height="104" rx="14" fill="none" stroke="#8B7CFF" stroke-width="1.5" opacity="0.3">
+        <animate attributeName="opacity" values="0.12;0.9;0.12" dur="6.4s" begin="5.6s" repeatCount="indefinite"/>
+      </rect>
+      <rect x="36" y="252" width="4" height="104" rx="2" fill="url(#c3)"/>
+      <text x="60" y="288" fill="#6FB8C9" font-family="Consolas, monospace" font-size="13">08</text>
+      <text x="60" y="316" fill="#EAF7FF" font-size="19" font-weight="700">输出</text>
+      <text x="60" y="340" fill="#7E97B4" font-size="13.5">主界面组件 · 设置页实时预览</text>
+    </g>
+  </g>
+
+  <g fill="none" stroke="#2A5E70" stroke-width="2" stroke-dasharray="7 6">
+    <animate attributeName="stroke-dashoffset" values="0;-52" dur="2.6s" repeatCount="indefinite"/>
+    <path d="M308 114 H344"/>
+    <path d="M620 114 H656"/>
+    <path d="M932 114 H968"/>
+    <path d="M1116 166 V248"/>
+    <path d="M968 304 H936"/>
+    <path d="M656 304 H624"/>
+    <path d="M344 304 H312"/>
+  </g>
+
+  <g fill="#2BE8C4">
+    <path d="M344 108 L354 114 L344 120 Z"/>
+    <path d="M656 108 L666 114 L656 120 Z"/>
+    <path d="M968 108 L978 114 L968 120 Z"/>
+    <path d="M1110 248 L1116 258 L1122 248 Z"/>
+    <path d="M936 298 L926 304 L936 310 Z"/>
+    <path d="M624 298 L614 304 L624 310 Z"/>
+    <path d="M312 298 L302 304 L312 310 Z"/>
+  </g>
+
+  <text x="36" y="402" fill="#3F6A82" font-family="Consolas, monospace" font-size="13">全程不写盘：画面只在本机内存里走完 01 → 08，输出只有人数</text>
+</svg>

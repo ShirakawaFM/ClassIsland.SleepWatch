@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="34" viewBox="0 0 1280 34" role="img" aria-label="分隔线">
+  <defs>
+    <linearGradient id="dline" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#1C3A4E" stop-opacity="0"/>
+      <stop offset="0.2" stop-color="#2BE8C4" stop-opacity="0.55"/>
+      <stop offset="0.8" stop-color="#2BE8C4" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#1C3A4E" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="dtravel" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2BE8C4" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#DFFFF8" stop-opacity="1"/>
+      <stop offset="1" stop-color="#2BE8C4" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="16" width="1280" height="1.5" fill="url(#dline)"/>
+  <rect x="-160" y="15" width="160" height="3.5" fill="url(#dtravel)">
+    <animate attributeName="x" values="-160;1280" dur="4.5s" repeatCount="indefinite"/>
+  </rect>
+  <g transform="translate(640 16)">
+    <rect x="-5" y="-5" width="10" height="10" transform="rotate(45)" fill="#04131A" stroke="#2BE8C4" stroke-width="1.4"/>
+    <rect x="-5" y="-5" width="10" height="10" transform="rotate(45)" fill="none" stroke="#9DFFEA" stroke-width="1.4">
+      <animate attributeName="opacity" values="0.2;1;0.2" dur="2.4s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+</svg>

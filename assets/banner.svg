@@ -1,0 +1,176 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-label="SleepWatch 课堂睡意监测 ClassIsland 插件">
+  <title>SleepWatch · 课堂睡意监测</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#05090F"/>
+      <stop offset="0.55" stop-color="#081420"/>
+      <stop offset="1" stop-color="#04131A"/>
+    </linearGradient>
+    <radialGradient id="haloCyan" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#2BE8C4" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#2BE8C4" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="haloRed" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FF4D5E" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#FF4D5E" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="titleGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.58" stop-color="#DAFFF7"/>
+      <stop offset="1" stop-color="#3BE8C4"/>
+    </linearGradient>
+    <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7CFBE0"/>
+      <stop offset="0.5" stop-color="#2BE8C4"/>
+      <stop offset="1" stop-color="#1C6E92"/>
+    </linearGradient>
+    <linearGradient id="scanGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2BE8C4" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#9DFFEA" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#2BE8C4" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#16304A" stroke-width="1"/>
+    </pattern>
+    <clipPath id="viewClip">
+      <rect x="866" y="82" width="342" height="250" rx="14"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1280" height="420" fill="url(#bg)"/>
+
+  <g opacity="0.6">
+    <g>
+      <rect x="-48" y="-48" width="1400" height="520" fill="url(#grid)"/>
+      <animateTransform attributeName="transform" type="translate" values="0 0;48 48" dur="9s" repeatCount="indefinite"/>
+    </g>
+  </g>
+  <rect x="0" y="0" width="1280" height="420" fill="url(#haloCyan)"/>
+  <circle cx="1046" cy="208" r="210" fill="url(#haloRed)"/>
+
+  <g>
+    <rect x="0" y="0" width="6" height="420" fill="url(#barGrad)"/>
+    <rect x="0" y="0" width="6" height="420" fill="#C8FFF2" opacity="0.3">
+      <animate attributeName="opacity" values="0.06;0.55;0.06" dur="3.2s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+
+  <g fill="#9FF6E2" opacity="0.45">
+    <circle cx="148" cy="352" r="2">
+      <animate attributeName="cy" values="352;212;352" dur="11s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="246" cy="180" r="1.8">
+      <animate attributeName="cy" values="180;330;180" dur="13s" begin="-4s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="612" cy="330" r="2.2">
+      <animate attributeName="cy" values="330;150;330" dur="15s" begin="-7s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="704" cy="120" r="1.6">
+      <animate attributeName="cy" values="120;300;120" dur="12s" begin="-2s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <text x="74" y="88" fill="#5FDDC2" font-family="Consolas, 'Courier New', monospace" font-size="17" letter-spacing="5">CLASSISLAND PLUGIN / 01</text>
+
+  <text y="196" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="76" font-weight="800" letter-spacing="-2">
+    <tspan x="72" fill="url(#titleGrad)">SleepWatch</tspan>
+  </text>
+
+  <text x="74" y="248" fill="#E8F6FF" font-family="'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif" font-size="29" font-weight="700" letter-spacing="1.5">课堂睡意监测 · 谁在趴着，一眼就知道</text>
+  <text x="74" y="286" fill="#7E97B4" font-family="'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="18">接一路教室摄像头，实时算出「疑似睡着」的人数，直接显示在 ClassIsland 主界面</text>
+
+  <g font-family="'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="16" font-weight="700">
+    <g>
+      <rect x="72" y="322" width="140" height="38" rx="19" fill="#0C2A31" stroke="#1E6E63"/>
+      <text x="94" y="347" fill="#8FF0DA">YOLOv8-Pose</text>
+    </g>
+    <g>
+      <rect x="224" y="322" width="92" height="38" rx="19" fill="#0C2A31" stroke="#1E6E63"/>
+      <text x="246" y="347" fill="#8FF0DA">ONNX</text>
+    </g>
+    <g>
+      <rect x="328" y="322" width="128" height="38" rx="19" fill="#0C2A31" stroke="#1E6E63"/>
+      <text x="350" y="347" fill="#8FF0DA">CPU 4 FPS</text>
+    </g>
+    <g>
+      <rect x="468" y="322" width="92" height="38" rx="19" fill="#0C2A31" stroke="#1E6E63"/>
+      <text x="490" y="347" fill="#8FF0DA">免标定</text>
+    </g>
+    <g>
+      <rect x="572" y="322" width="92" height="38" rx="19" fill="#0C2A31" stroke="#1E6E63"/>
+      <text x="594" y="347" fill="#8FF0DA">不认人</text>
+    </g>
+  </g>
+
+  <g>
+    <rect x="866" y="82" width="342" height="250" rx="14" fill="#061019" stroke="#173A4A"/>
+    <rect x="866" y="82" width="342" height="250" rx="14" fill="none" stroke="#2BE8C4" stroke-opacity="0.55">
+      <animate attributeName="stroke-opacity" values="0.18;0.8;0.18" dur="3s" repeatCount="indefinite"/>
+    </rect>
+
+    <g clip-path="url(#viewClip)">
+      <path d="M866 300 L1208 300" stroke="#123243" stroke-width="1.5"/>
+      <g opacity="0.3" stroke="#1E4A5E" stroke-width="1">
+        <path d="M900 300 L930 232"/><path d="M1000 300 L1000 232"/>
+        <path d="M1100 300 L1070 232"/><path d="M1180 300 L1150 232"/>
+      </g>
+
+      <g fill="#12303F" stroke="#2A6076" stroke-width="1.5">
+        <g>
+          <circle cx="944" cy="214" r="15"/>
+          <path d="M918 292 q26 -40 52 0 z"/>
+        </g>
+        <g>
+          <circle cx="1052" cy="212" r="15"/>
+          <path d="M1026 292 q26 -40 52 0 z"/>
+        </g>
+      </g>
+
+      <g>
+        <circle cx="1148" cy="232" r="15" fill="#3A1519" stroke="#FF4D5E" stroke-width="1.5"/>
+        <path d="M1122 292 q26 -36 52 0 z" fill="#3A1519" stroke="#FF4D5E" stroke-width="1.5"/>
+        <text x="1108" y="214" fill="#FF8492" font-family="Consolas, monospace" font-size="13">z</text>
+        <text x="1118" y="202" fill="#FF8492" font-family="Consolas, monospace" font-size="17">z</text>
+        <text x="1130" y="188" fill="#FFB3BC" font-family="Consolas, monospace" font-size="22">Z</text>
+        <circle cx="1160" cy="196" r="3" fill="#FF4D5E">
+          <animate attributeName="opacity" values="1;0.2;1" dur="1.8s" repeatCount="indefinite"/>
+        </circle>
+      </g>
+
+      <g fill="none" stroke="#2BE8C4" stroke-width="2" stroke-opacity="0.85">
+        <rect x="916" y="186" width="60" height="110" rx="4"/>
+        <rect x="1024" y="184" width="60" height="112" rx="4"/>
+      </g>
+
+      <rect x="1116" y="176" width="66" height="122" rx="4" fill="none" stroke="#FF4D5E" stroke-width="2.5" stroke-dasharray="12 7">
+        <animate attributeName="stroke-dashoffset" values="0;-38" dur="1.6s" repeatCount="indefinite"/>
+      </rect>
+
+      <rect x="866" y="82" width="342" height="3" fill="url(#scanGrad)">
+        <animate attributeName="y" values="82;329;82" dur="6.5s" repeatCount="indefinite"/>
+      </rect>
+    </g>
+
+    <g font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#4E7791">
+      <text x="882" y="104">CAM 0 · 1280×720</text>
+      <text x="1096" y="104" fill="#FF6B78">●</text>
+      <text x="1114" y="104" fill="#FF8B96">REC</text>
+      <g>
+        <animate attributeName="opacity" values="1;0.2;1" dur="1.6s" repeatCount="indefinite"/>
+        <text x="1160" y="104" fill="#FF8B96">LIVE</text>
+      </g>
+      <text x="882" y="320" fill="#7CDCC6">在座 38 / 45</text>
+      <text x="1004" y="320" fill="#FF6B78">疑似睡着 1</text>
+      <text x="1128" y="320" fill="#E3B341">判断不了 6</text>
+    </g>
+
+    <g stroke="#2BE8C4" stroke-width="2" fill="none" opacity="0.9">
+      <path d="M866 96 L866 82 L880 82"/>
+      <path d="M1208 96 L1208 82 L1194 82"/>
+      <path d="M866 318 L866 332 L880 332"/>
+      <path d="M1208 318 L1208 332 L1194 332"/>
+    </g>
+  </g>
+
+  <text x="74" y="394" fill="#44627D" font-family="Consolas, 'Courier New', monospace" font-size="15">MIT · Windows · .NET 10 · github.com/ShirakawaFM/ClassIsland.SleepWatch</text>
+</svg>
