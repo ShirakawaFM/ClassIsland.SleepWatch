@@ -268,7 +268,7 @@ public partial class SummaryWindow : Window
         // 末页：停几秒自己关；其余页：时间到就翻
         if (_index == _pages.Count - 1)
         {
-            if (_cfg.AutoCloseAtEnd && _pages.Count > 1 &&
+            if (_cfg.AutoCloseAtEnd &&
                 _pageAge > Math.Min(_cfg.SlideSeconds, CloseDwellSeconds))
             {
                 Close();
