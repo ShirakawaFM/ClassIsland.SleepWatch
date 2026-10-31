@@ -42,8 +42,11 @@ public class SummarySettings
     /// <summary>窗口里自动逐日轮播。</summary>
     public bool AutoPlay { get; set; } = true;
 
+    /// <summary>放完末页自动关窗。默认开：看完就散，别留一个窗口在那。</summary>
+    public bool AutoCloseAtEnd { get; set; } = true;
+
     /// <summary>每页停几秒。</summary>
-    public int SlideSeconds { get; set; } = 9;
+    public int SlideSeconds { get; set; } = 7;
 
     /// <summary>总共回看几天。</summary>
     public int HistoryDays { get; set; } = 7;

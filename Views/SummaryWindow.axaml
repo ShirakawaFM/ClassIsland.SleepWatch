@@ -4,7 +4,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:ctrl="using:ClassIsland.SleepWatch.Controls"
     Title="SleepWatch 课后总结"
-    Width="1180" Height="812"
+    Width="920" Height="640"
+    MinWidth="820" MinHeight="560"
     CanResize="False"
     WindowStartupLocation="CenterScreen"
     Background="#F7F4EC"
@@ -16,7 +17,7 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="BorderBrush" Value="#33000000" />
             <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="Padding" Value="13,6" />
+            <Setter Property="Padding" Value="12,5" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Foreground" Value="#2E2A26" />
             <Setter Property="MinWidth" Value="0" />
@@ -52,22 +53,22 @@
     </Window.Styles>
 
     <Grid>
-        <!-- 会流动的像素背景 -->
+        <!-- 会流动的像素背景（60fps，跟着垂直同步走） -->
         <ctrl:PixelFlowBackground x:Name="Flow" />
 
-        <Grid Margin="30">
+        <Grid Margin="22">
             <Border x:Name="Shell"
-                    CornerRadius="22"
-                    Background="#EBFFFCF6"
+                    CornerRadius="20"
+                    Background="#DEFFFCF6"
                     BorderThickness="1"
                     BorderBrush="#33D97757">
                 <Grid RowDefinitions="Auto,*,Auto">
 
                     <!-- ================= 顶栏 ================= -->
-                    <Grid Grid.Row="0" Margin="30,20,20,8" ColumnDefinitions="Auto,*,Auto">
-                        <StackPanel Orientation="Horizontal" Spacing="13">
-                            <Border x:Name="LogoBox" Width="36" Height="36" CornerRadius="10" Background="#D97757">
-                                <Grid RowDefinitions="*,*,*" ColumnDefinitions="*,*,*" Margin="8">
+                    <Grid Grid.Row="0" Margin="26,18,18,6" ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border x:Name="LogoBox" Width="32" Height="32" CornerRadius="9" Background="#D97757">
+                                <Grid RowDefinitions="*,*,*" ColumnDefinitions="*,*,*" Margin="7">
                                     <Border Grid.Row="0" Grid.Column="0" Background="#FFF4EE" CornerRadius="1" />
                                     <Border Grid.Row="0" Grid.Column="2" Background="#FFF4EE" CornerRadius="1" />
                                     <Border Grid.Row="1" Grid.Column="1" Background="#FFF4EE" CornerRadius="1" />
@@ -76,74 +77,92 @@
                                 </Grid>
                             </Border>
                             <StackPanel VerticalAlignment="Center" Spacing="1">
-                                <TextBlock x:Name="HeaderTitle" Text="课后总结" FontSize="15" FontWeight="Bold" />
-                                <TextBlock x:Name="HeaderSub" Text="静默检测 · 全程无打扰" FontSize="11" Opacity="0.5" />
+                                <TextBlock x:Name="HeaderTitle" Text="课后总结" FontSize="14.5" FontWeight="Bold" />
+                                <TextBlock x:Name="HeaderSub" Text="静默检测 · 全程无打扰" FontSize="10.5" Opacity="0.48" />
                             </StackPanel>
                         </StackPanel>
 
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <Button x:Name="PrevButton" Classes="tool" Content="‹" FontSize="15" Padding="12,2" />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                            <Button x:Name="PrevButton" Classes="tool" Content="‹" FontSize="15" Padding="11,1" />
                             <Button x:Name="PlayButton" Classes="tool" Content="暂停" />
-                            <Button x:Name="NextButton" Classes="tool" Content="›" FontSize="15" Padding="12,2" />
+                            <Button x:Name="NextButton" Classes="tool" Content="›" FontSize="15" Padding="11,1" />
                             <Button x:Name="ConfigButton" Classes="tool" Content="配置" />
                             <Button x:Name="CloseButton" Classes="accent" Content="看完啦" />
                         </StackPanel>
                     </Grid>
 
                     <!-- ================= 正文 ================= -->
-                    <Grid x:Name="BodyGrid" Grid.Row="1" Margin="30,10,30,0" ColumnDefinitions="1.28*,0.92*">
+                    <Grid x:Name="BodyGrid" Grid.Row="1" Margin="26,4,26,0" ColumnDefinitions="1.06*,0.94*">
 
-                        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto"
-                                          HorizontalScrollBarVisibility="Disabled" Margin="0,0,14,0">
-                            <StackPanel Spacing="10">
-                                <TextBlock x:Name="DayLabel" Text="今天" FontSize="12" Opacity="0.55"
-                                           FontFamily="Consolas, monospace" />
-                                <TextBlock x:Name="Headline" Text="这节课" FontSize="30" FontWeight="Bold"
-                                           TextWrapping="Wrap" LineHeight="38" />
-                                <StackPanel Spacing="3">
-                                    <TextBlock x:Name="LessonLabel" Text="" FontSize="13" FontWeight="SemiBold" />
-                                    <TextBlock x:Name="Subline" Text="" FontSize="11.5" Opacity="0.5" TextWrapping="Wrap" />
-                                </StackPanel>
+                        <!-- 左：一个巨大的数字 + 三个关键词。整块垂直居中，上下留白对称 -->
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
 
-                                <UniformGrid x:Name="StatsPanel" Columns="3" Margin="0,6,0,0" />
-
-                                <Border x:Name="ChartCard" CornerRadius="16" BorderThickness="1"
-                                        BorderBrush="#22808080" Padding="14,12" Margin="0,6,0,0">
-                                    <StackPanel Spacing="6">
-                                        <Grid ColumnDefinitions="*,Auto">
-                                            <TextBlock Text="人数变化" FontSize="12.5" FontWeight="SemiBold" Opacity="0.8" />
-                                            <Border Grid.Column="1" CornerRadius="6" Padding="7,2"
-                                                    Background="#22808080">
-                                                <TextBlock x:Name="PeakBadge" Text="峰值 0 人" FontSize="11" />
-                                            </Border>
-                                        </Grid>
-                                        <ctrl:SleepCurveChart x:Name="Chart" Height="176" />
-                                    </StackPanel>
-                                </Border>
-
-                                <TextBlock x:Name="FooterNote" Text="" FontSize="11" Opacity="0.45" Margin="0,2,0,16" />
+                            <StackPanel Spacing="2">
+                                <TextBlock x:Name="DayLabel" Text="今天" FontSize="11"
+                                           Opacity="0.55" FontFamily="Consolas, monospace" />
+                                <TextBlock x:Name="LessonLabel" Text="" FontSize="13" FontWeight="SemiBold" />
                             </StackPanel>
-                        </ScrollViewer>
 
-                        <Border x:Name="FactsHost" Grid.Column="1" CornerRadius="16" BorderThickness="1"
-                                BorderBrush="#22808080" Padding="16,14" Margin="0,0,0,14">
-                            <Grid RowDefinitions="Auto,*">
-                                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                                    <TextBlock x:Name="FactsTitle" Text="趣味记录" FontSize="12.5" FontWeight="SemiBold" Opacity="0.8" />
-                                    <TextBlock x:Name="FactsCount" Grid.Column="1" Text="0 条" FontSize="11" Opacity="0.45"
-                                               FontFamily="Consolas, monospace" />
+                            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,12,0,0">
+                                <TextBlock x:Name="BigNumber" Text="0"
+                                           FontSize="112" FontWeight="Bold"
+                                           FontFamily="Georgia, Times New Roman, 宋体"
+                                           LineHeight="116" />
+                                <!-- 单位单独一个字号，112px 的"140 次"会把右边标签挤出去 -->
+                                <TextBlock x:Name="BigUnit" Text="" IsVisible="False"
+                                           FontSize="30" FontWeight="SemiBold" Opacity="0.72"
+                                           VerticalAlignment="Bottom" Margin="0,0,0,22" />
+                                <StackPanel VerticalAlignment="Bottom" Margin="0,0,0,18" Spacing="2">
+                                    <TextBlock x:Name="BigLabel" Text="人睡着" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="HeroHint" Text="" FontSize="11" Opacity="0.45" />
+                                </StackPanel>
+                            </StackPanel>
+
+                            <TextBlock x:Name="Headline" Text="" FontSize="14"
+                                       TextWrapping="Wrap" LineHeight="22" Margin="0,6,0,0" Opacity="0.72" />
+
+                            <TextBlock x:Name="Subline" Text="" FontSize="10.5"
+                                       TextWrapping="Wrap" Margin="0,6,0,0" Opacity="0.46" />
+
+                            <WrapPanel x:Name="StatsPanel" Margin="0,16,0,0" />
+                        </StackPanel>
+
+                        <!-- 右：曲线卡（入场时从零长起来） -->
+                        <Grid x:Name="RightCol" Grid.Column="1" RowDefinitions="Auto,Auto" VerticalAlignment="Bottom">
+                            <Border x:Name="ChartCard" CornerRadius="16" BorderThickness="1"
+                                    BorderBrush="#22808080" Padding="12,10">
+                                <Grid RowDefinitions="Auto,*">
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                                        <TextBlock x:Name="ChartTitle" Text="人数变化" FontSize="11.5" FontWeight="SemiBold" Opacity="0.75" />
+                                        <Border Grid.Column="1" CornerRadius="6" Padding="7,1.5" Background="#22808080">
+                                            <TextBlock x:Name="PeakBadge" Text="峰值 0 人" FontSize="10.5" />
+                                        </Border>
+                                    </Grid>
+                                    <ctrl:SleepCurveChart x:Name="Chart" Grid.Row="1" MinHeight="210" />
                                 </Grid>
-                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                                    <StackPanel x:Name="FactsPanel" Spacing="8" />
-                                </ScrollViewer>
-                            </Grid>
-                        </Border>
+                            </Border>
+
+                            <Border x:Name="FactsHost" Grid.Row="1" CornerRadius="16" BorderThickness="1"
+                                    BorderBrush="#22808080" Padding="14,11" Margin="0,10,0,0">
+                                <StackPanel Spacing="6">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock x:Name="FactsTitle" Text="记一笔" FontSize="11.5"
+                                                   FontWeight="SemiBold" Opacity="0.75" />
+                                        <TextBlock x:Name="FactsCount" Grid.Column="1" Text="0 条" FontSize="10.5"
+                                                   Opacity="0.4" FontFamily="Consolas, monospace" />
+                                    </Grid>
+                                    <StackPanel x:Name="FactsPanel" Spacing="5" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
                     </Grid>
 
                     <!-- ================= 底栏 ================= -->
-                    <Grid Grid.Row="2" Margin="30,6,30,16" ColumnDefinitions="Auto,*,Auto">
-                        <StackPanel x:Name="Dots" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center" />
-                        <TextBlock x:Name="PlayHint" Grid.Column="2" Text="自动轮播" FontSize="11" Opacity="0.45"
+                    <Grid Grid.Row="2" Margin="26,8,26,14" ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel x:Name="Dots" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" />
+                        <TextBlock x:Name="FooterNote" Grid.Column="1" Text="" FontSize="10.5" Opacity="0.4"
+                                   Margin="14,0" VerticalAlignment="Center" TextWrapping="Wrap" />
+                        <TextBlock x:Name="PlayHint" Grid.Column="2" Text="自动轮播" FontSize="10.5" Opacity="0.42"
                                    VerticalAlignment="Center" />
                     </Grid>
                 </Grid>
@@ -152,9 +171,9 @@
             <!-- ================= 配置面板 ================= -->
             <Border x:Name="ConfigPanel" IsVisible="False"
                     HorizontalAlignment="Right" VerticalAlignment="Stretch"
-                    Width="440" Margin="0,12,12,12"
+                    Width="420" Margin="0,8,8,8"
                     CornerRadius="18" BorderThickness="1" BorderBrush="#33808080"
-                    Background="#FFFCF6" Padding="20">
+                    Background="#FFFCF6" Padding="18">
                 <Grid RowDefinitions="Auto,*,Auto">
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Text="总结页配置" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" />
@@ -184,14 +203,15 @@
                                     <CheckBox x:Name="CbSilent" Content="静默检测" />
                                     <CheckBox x:Name="CbAutoPopup" Grid.Column="1" Content="下课自动弹出" />
                                     <CheckBox x:Name="CbAutoPlay" Grid.Row="1" Content="逐日轮播" />
+                                    <CheckBox x:Name="CbAutoClose" Grid.Row="1" Grid.Column="1" Content="末页自动关" />
                                 </Grid>
                             </StackPanel>
 
-                            <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,2">
+                            <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,12,2">
                                 <TextBlock Text="每页停留" FontSize="12" VerticalAlignment="Center" Width="56" Opacity="0.8" />
                                 <Slider x:Name="SlideSlider" Grid.Column="1" Margin="6,0" Minimum="3" Maximum="30"
                                         TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
-                                <TextBlock x:Name="SlideValue" Grid.Column="2" Text="9s" FontSize="12" Width="30"
+                                <TextBlock x:Name="SlideValue" Grid.Column="2" Text="7s" FontSize="12" Width="30"
                                            FontFamily="Consolas, monospace" VerticalAlignment="Center" TextAlignment="Right" />
                             </Grid>
 
@@ -222,7 +242,7 @@
                             <StackPanel Spacing="2">
                                 <TextBlock Text="像素背景" FontSize="11.5" FontWeight="SemiBold" Opacity="0.55" />
                                 <CheckBox x:Name="CbPixel" Content="流动动画" />
-                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2,0,0">
+                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2,12,0">
                                     <TextBlock Text="大小" FontSize="12" Width="56" VerticalAlignment="Center" Opacity="0.8" />
                                     <Slider x:Name="PixelSlider" Grid.Column="1" Margin="6,0" Minimum="4" Maximum="16"
                                             TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
@@ -232,7 +252,7 @@
                             </StackPanel>
 
                             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,4">
-                                <Button x:Name="SampleButton" Classes="tool" Content="预览示例数据" />
+                                <Button x:Name="SampleButton" Classes="tool" Content="换一版数据" />
                                 <Button x:Name="FolderButton" Classes="tool" Content="历史文件位置" />
                             </StackPanel>
                         </StackPanel>

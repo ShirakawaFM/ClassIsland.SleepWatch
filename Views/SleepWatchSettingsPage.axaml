@@ -117,6 +117,53 @@
                 <TextBlock Text="越大越难判成睁眼。对照上面的实时画面调" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
             </StackPanel>
 
+            <!-- ================= 课表同步 ================= -->
+            <TextBlock Text="课表同步" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <TextBlock Text="按 ClassIsland 的课表时间自动判断上课 / 下课：每一拍都拿当前时间去课表里查，不依赖下课铃事件，所以就算事件漏了、课表被手动跳了，也不会整节课不记账。下课时刻取课表上写的时间，不是插件醒来的时间。"
+                       FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+
+            <Border BorderThickness="1" BorderBrush="#33888888" CornerRadius="6" Padding="14">
+                <StackPanel Spacing="7">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Border x:Name="PhaseDot" Width="10" Height="10" CornerRadius="5"
+                                Background="#9E9E9E" VerticalAlignment="Center" />
+                        <TextBlock x:Name="PhaseTitle" Text="正在读取课表…" FontSize="14" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock x:Name="PhaseDetail" Text="—" FontSize="12" Opacity="0.75" TextWrapping="Wrap" />
+                    <TextBlock x:Name="PhaseNext" Text="" FontSize="12" Opacity="0.55" TextWrapping="Wrap" />
+                    <Border Height="1" Background="#22888888" Margin="0,3" />
+                    <TextBlock x:Name="SyncStatus" Text="—" FontSize="11.5" Opacity="0.6" TextWrapping="Wrap" />
+                    <TextBlock x:Name="ClockWarning" Text="" FontSize="11.5" Foreground="#C08040"
+                               TextWrapping="Wrap" IsVisible="False" />
+                </StackPanel>
+            </Border>
+
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button x:Name="SyncButton" Content="立即同步课表" />
+                <Button x:Name="SimulateClassButton" Content="模拟上课" />
+                <Button x:Name="SimulateBreakButton" Content="模拟下课" />
+            </StackPanel>
+
+            <!-- ================= 试弹 ================= -->
+            <TextBlock Text="结果试弹" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <TextBlock Text="等一节课太慢，这里可以立刻把总结窗弹出来看真实效果。弹出来的窗口是正常窗口，能改配色、能勾选显示项、按 Esc 直接关；试弹全程不写历史记录，弹多少次都不会污染数据。"
+                       FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button x:Name="PreviewLiveButton" Content="试弹（真实记录）" />
+                <Button x:Name="PreviewSampleButton" Content="试弹（合成数据）" />
+                <Button x:Name="PreviewRerollButton" Content="换一版再弹" />
+            </StackPanel>
+
+            <Border BorderThickness="1" BorderBrush="#33888888" CornerRadius="6" Padding="12">
+                <StackPanel Spacing="4">
+                    <TextBlock x:Name="PreviewStatus" Text="还没试弹过" FontSize="12" TextWrapping="Wrap" />
+                    <TextBlock Text="合成数据用固定种子生成，同样的种子每次都长一样，方便对照改配色前后的差别。"
+                               FontSize="11.5" Opacity="0.5" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
             <!-- ================= 自动化 ================= -->
             <TextBlock Text="自动化" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
             <CheckBox x:Name="AutoStartBox" Content="上课自动开始监测" />

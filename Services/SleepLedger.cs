@@ -41,6 +41,9 @@ public sealed class SleepLedger
     /// <summary>曲线采样间隔。一节课 45 分钟大约 135 个点，够画了。</summary>
     private const double SampleSeconds = 20;
 
+    /// <summary>采样断档超过这么多分钟，就认为中间没看着画面，开着的睡眠段按断档前的时刻收口。</summary>
+    private const double GapMinutes = 5;
+
     /// <summary>一节课结束时会触发，参数是刚结算完的那节课。</summary>
     public event Action<LessonRecord>? LessonFinished;
 
@@ -56,8 +59,11 @@ public sealed class SleepLedger
         Load();
     }
 
-    /// <summary>上课：开一个新的记录段。</summary>
-    public void BeginLesson(DateTime now, int classSize)
+    /// <summary>
+    /// 上课：开一个新的记录段。
+    /// <paramref name="index"/> 由课表给（第几节），传 0 就按当天的顺序自己编号。
+    /// </summary>
+    public void BeginLesson(DateTime now, int classSize, int index = 0, string subject = "")
     {
         lock (_gate)
         {
@@ -67,7 +73,7 @@ public sealed class SleepLedger
             if (_current != null) CloseCurrent(now);
 
             var day = DayOf(now);
-            var index = day.Lessons.Count + 1;
+            if (index <= 0) index = day.Lessons.Count + 1;
 
             _autoPaused = false;
 
@@ -76,6 +82,7 @@ public sealed class SleepLedger
                 Start = now,
                 End = now,
                 Index = index,
+                Subject = subject ?? "",
                 ClassSize = classSize
             };
 
@@ -165,6 +172,19 @@ public sealed class SleepLedger
             EnsureLesson(now, classSize);
 
             if (_current == null) return;
+
+            // 采样断档（休眠 / 检测停了很久）：开着的睡眠段按上一拍收口。
+            // 否则一个跨了整夜的段会被算成"睡了 8 小时"。
+            if (_lastSample != DateTime.MinValue &&
+                (now - _lastSample).TotalMinutes > GapMinutes)
+            {
+                foreach (var ep in _open.Values)
+                {
+                    if (ep.End == null) ep.End = _lastSample;
+                }
+
+                _open.Clear();
+            }
 
             _current.End = now;
 

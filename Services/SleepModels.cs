@@ -50,6 +50,9 @@ public sealed class LessonRecord
     /// <summary>当天第几节（从 1 开始）。拿不到课表时按"当天第几段"算。</summary>
     public int Index { get; set; }
 
+    /// <summary>科目名。课表没配就一直空着，界面退化成只显示「第 N 节」。</summary>
+    public string Subject { get; set; } = "";
+
     public int ClassSize { get; set; }
 
     public List<SleepEpisode> Episodes { get; set; } = new();
@@ -61,17 +64,25 @@ public sealed class LessonRecord
     public TimeSpan Length => End > Start ? End - Start : TimeSpan.Zero;
 
     [JsonIgnore]
-    public string Title => Index > 0
-        ? $"第 {Index} 节 · {Start:HH:mm}–{End:HH:mm}"
-        : $"{Start:HH:mm}–{End:HH:mm}";
+    public string Title
+    {
+        get
+        {
+            var head = Index > 0 ? $"第 {Index} 节" : "";
+            if (!string.IsNullOrWhiteSpace(Subject)) head = head.Length > 0 ? $"{head} · {Subject}" : Subject;
+            if (head.Length == 0) return $"{Start:HH:mm}–{End:HH:mm}";
+
+            return $"{head} · {Start:HH:mm}–{End:HH:mm}";
+        }
+    }
 
     /// <summary>睡过的人数（同一个人睡两次也只算一个人）。</summary>
     [JsonIgnore]
     public int Sleepers => Episodes.Select(e => e.TrackId).Distinct().Count();
 
-    /// <summary>已经醒过来的次数。</summary>
+    /// <summary>醒过来的人数（同一个人睡醒又睡，只算一个；不会超过睡过的总人数）。</summary>
     [JsonIgnore]
-    public int Awakenings => Episodes.Count(e => e.Awake);
+    public int Awakenings => Episodes.Where(e => e.Awake).Select(e => e.TrackId).Distinct().Count();
 
     /// <summary>同一位置最多睡了几次。</summary>
     [JsonIgnore]

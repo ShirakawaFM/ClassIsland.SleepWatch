@@ -49,6 +49,20 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
     private Button _summaryButton = null!;
     private Button _sampleSummaryButton = null!;
 
+    private Border _phaseDot = null!;
+    private TextBlock _phaseTitle = null!;
+    private TextBlock _phaseDetail = null!;
+    private TextBlock _phaseNext = null!;
+    private TextBlock _syncStatus = null!;
+    private TextBlock _clockWarning = null!;
+    private TextBlock _previewStatus = null!;
+    private Button _syncButton = null!;
+    private Button _simulateClassButton = null!;
+    private Button _simulateBreakButton = null!;
+    private Button _previewLiveButton = null!;
+    private Button _previewSampleButton = null!;
+    private Button _previewRerollButton = null!;
+
     private readonly DispatcherTimer _timer;
     private readonly DispatcherTimer _saveTimer;
     private readonly DispatcherTimer _previewTimer;
@@ -64,7 +78,11 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         FillAbout();
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _timer.Tick += (_, _) => UpdateStatus();
+        _timer.Tick += (_, _) =>
+        {
+            UpdateStatus();
+            UpdatePhase();
+        };
 
         // 拖动滑动条会连续触发 Value 变化，攒 400ms 再落盘，避免疯狂写 settings.json
         _saveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
@@ -83,6 +101,7 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
             LoadValues();
             _timer.Start();
             UpdateStatus();
+            UpdatePhase();
             StartPreview();
         };
 
@@ -126,6 +145,20 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         _silentBox = this.FindControl<CheckBox>("SilentBox")!;
         _summaryButton = this.FindControl<Button>("SummaryButton")!;
         _sampleSummaryButton = this.FindControl<Button>("SampleSummaryButton")!;
+
+        _phaseDot = this.FindControl<Border>("PhaseDot")!;
+        _phaseTitle = this.FindControl<TextBlock>("PhaseTitle")!;
+        _phaseDetail = this.FindControl<TextBlock>("PhaseDetail")!;
+        _phaseNext = this.FindControl<TextBlock>("PhaseNext")!;
+        _syncStatus = this.FindControl<TextBlock>("SyncStatus")!;
+        _clockWarning = this.FindControl<TextBlock>("ClockWarning")!;
+        _previewStatus = this.FindControl<TextBlock>("PreviewStatus")!;
+        _syncButton = this.FindControl<Button>("SyncButton")!;
+        _simulateClassButton = this.FindControl<Button>("SimulateClassButton")!;
+        _simulateBreakButton = this.FindControl<Button>("SimulateBreakButton")!;
+        _previewLiveButton = this.FindControl<Button>("PreviewLiveButton")!;
+        _previewSampleButton = this.FindControl<Button>("PreviewSampleButton")!;
+        _previewRerollButton = this.FindControl<Button>("PreviewRerollButton")!;
     }
 
     private void LoadValues()
@@ -205,6 +238,24 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
 
         _silentBox.Click += (_, _) => CommitSilent();
 
+        _syncButton.Click += (_, _) =>
+        {
+            LessonClock.EnsureStarted();
+            TimetableSync.Refresh(force: true);
+            UpdatePhase();
+
+            _statusText.Text = TimetableSync.IsUsable
+                ? "课表已同步，接下来会自动跟着上下课。"
+                : "课表还不可用：" + TimetableSync.Message;
+        };
+
+        _simulateClassButton.Click += (_, _) => Simulate(inClass: true);
+        _simulateBreakButton.Click += (_, _) => Simulate(inClass: false);
+
+        _previewLiveButton.Click += (_, _) => DoPreview(PreviewLab.Open(sample: false));
+        _previewSampleButton.Click += (_, _) => DoPreview(PreviewLab.Open(sample: true));
+        _previewRerollButton.Click += (_, _) => DoPreview(PreviewLab.Reroll());
+
         _summaryButton.Click += (_, _) => SummaryHost.ShowNow(sample: false);
         _sampleSummaryButton.Click += (_, _) => SummaryHost.ShowNow(sample: true);
 
@@ -274,6 +325,109 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         SettingsStore.Save(s);
 
         _statusText.Text = "已保存。改动需要点【重启监测】才会生效。";
+    }
+
+    // ---------- 课表状态 ----------
+
+    /// <summary>
+    /// 刷新课表状态卡。每秒跟主状态一起刷，不额外开定时器。
+    /// </summary>
+    private void UpdatePhase()
+    {
+        try
+        {
+            var snap = LessonClock.Snapshot();
+
+            _phaseTitle.Text = snap.Title;
+            _phaseDetail.Text = snap.Detail;
+            _phaseNext.Text = snap.Next;
+
+            _phaseDot.Background = new SolidColorBrush(Color.Parse(snap.Phase switch
+            {
+                LessonPhase.InClass => "#78DC78",
+                LessonPhase.Breaking => "#B4B45A",
+                LessonPhase.BeforeSchool => "#7FA3CB",
+                LessonPhase.AfterSchool => "#9E9E9E",
+                _ => "#C08040"
+            }));
+
+            var native = TimetableSync.ReadNativeStateName();
+            _syncStatus.Text = string.IsNullOrWhiteSpace(native)
+                ? TimetableSync.Describe()
+                : $"{TimetableSync.Describe()}　·　ClassIsland 自报状态 {native}";
+
+            var warning = LessonClock.Warning;
+            _clockWarning.IsVisible = !string.IsNullOrWhiteSpace(warning);
+            _clockWarning.Text = warning;
+
+            _previewStatus.Text = PreviewLab.LastNote + "\n" + PreviewLab.Describe();
+        }
+        catch (Exception ex)
+        {
+            _syncStatus.Text = "刷新课表状态出错：" + ex.Message;
+        }
+    }
+
+    /// <summary>模拟上课 / 下课。用来验证"记账 → 结算 → 弹窗"这条链路，不用真等一节课。</summary>
+    private void Simulate(bool inClass)
+    {
+        try
+        {
+            if (inClass)
+            {
+                var context = LessonClock.SimulateBegin();
+
+                // 模拟上课也要让检测跑起来，否则记出来是一节空课
+                var engine = Engine();
+                var settings = SettingsStore.Load();
+
+                if (engine != null && !engine.IsRunning) engine.Start(settings);
+
+                _statusText.Text = engine is { IsRunning: true }
+                    ? $"已模拟上课：{context.Title}。检测在跑，睡着的人会记进这一节，点【模拟下课】看结算。"
+                    : $"已模拟上课：{context.Title}。但检测没起来，这节会是空的——先去点【重启监测】。";
+
+                UpdatePhase();
+                return;
+            }
+
+            var before = SleepLedger.Instance.LastFinished;
+            var finished = LessonClock.SimulateEnd();
+
+            if (finished == null)
+            {
+                _statusText.Text = "现在没有正在上的课，没什么可结的。先点【模拟上课】。";
+                UpdatePhase();
+                return;
+            }
+
+            var lesson = SleepLedger.Instance.LastFinished;
+
+            if (lesson == null || ReferenceEquals(lesson, before))
+            {
+                _statusText.Text = $"已模拟下课：{finished.Title}。但这节课一条记录都没有（检测没跑，或者全班都醒着），所以不会弹窗。";
+            }
+            else if (lesson.Episodes.Count == 0)
+            {
+                _statusText.Text = $"已模拟下课：{finished.Title}。零睡眠记录，按设计不弹窗——每节课弹个「0 人睡觉」只会让人想关掉它。";
+            }
+            else
+            {
+                _statusText.Text = $"已模拟下课：{finished.Title}，记到 {lesson.Episodes.Count} 段睡眠。按配置{(SummarySettingsStore.Load().AutoPopupOnLessonEnd ? "应当已弹出" : "不自动弹（没开自动弹窗）")}。";
+            }
+
+            UpdatePhase();
+        }
+        catch (Exception ex)
+        {
+            _statusText.Text = "模拟失败：" + ex.Message;
+        }
+    }
+
+    private void DoPreview(bool ok)
+    {
+        _previewStatus.Text = PreviewLab.LastNote + "\n" + PreviewLab.Describe();
+        _statusText.Text = ok ? "试弹已打开：改配色、勾选项都是实时生效的。" : "试弹没打开：" + PreviewLab.LastNote;
     }
 
     /// <summary>静默开关存在 summary.json 里，跟检测参数分开。</summary>
