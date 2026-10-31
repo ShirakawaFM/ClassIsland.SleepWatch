@@ -176,7 +176,7 @@ public static class SummaryBuilder
 
     /// <summary>
     /// 末页：这几天加起来的账。
-    /// 只回答四个问题 —— 一共几个人睡过、总共几次、摊到每天几次、最长一觉多久。
+    /// 只回答四个问题：一共几个人睡过、总共几次、摊到每天几次、最长一觉多久。
     /// </summary>
     public static SummaryPage BuildTotal(
         IReadOnlyList<DayRecord> days,

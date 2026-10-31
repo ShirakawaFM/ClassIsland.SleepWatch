@@ -193,7 +193,7 @@
                         </Border>
                     </StackPanel>
                     <TextBlock Text="作者：ShirakawaFM / 白川方明" FontSize="12" Opacity="0.75" />
-                    <TextBlock Text="接一个教室摄像头，反推画面里有几个人疑似睡着。画面只在本机内存里处理 —— 不存盘、不上传、不做人脸识别，输出只有人数。"
+                    <TextBlock Text="接一个教室摄像头，反推画面里有几个人疑似睡着。画面只在本机内存里过一遍，不存盘、不上传、也不做人脸识别，输出只有人数。"
                                FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
                     <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,2,0,0">
                         <Button x:Name="RepoButton" Content="项目主页" />

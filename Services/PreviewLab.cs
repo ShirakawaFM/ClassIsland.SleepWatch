@@ -14,7 +14,7 @@ namespace ClassIsland.SleepWatch.Services;
 /// <item><b>真实数据</b> —— 直接拿账本里已有的记录弹，验证"下课之后到底长什么样"；</item>
 /// <item><b>合成数据</b> —— 用固定种子现场造几天，改一次配色就能重弹一次，方便调视觉。</item>
 /// </list>
-/// 两种都**不写历史**，弹一百次也不会污染 history.json。
+/// 两种都<b>不写历史</b>，弹一百次也不会污染 history.json。
 ///
 /// 种子单独管：<see cref="Reroll"/> 换一个种子再弹，就能连着看不同的人数曲线，
 /// 不用关窗口重开。

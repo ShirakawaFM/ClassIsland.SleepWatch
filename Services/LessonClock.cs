@@ -8,7 +8,7 @@ namespace ClassIsland.SleepWatch.Services;
 /// <summary>
 /// 上下课状态机。整条链路就靠它决定「什么时候算上课、什么时候算下课」。
 ///
-/// 判定思路：**自己按课表时间算，不信任别人给的事件**。
+/// 判定思路：<b>自己按课表时间算，不信任别人给的事件</b>。
 /// ClassIsland 的 <c>OnClass</c> / <c>OnBreakingTime</c> 事件不一定会来（课表被停用、
 /// 用户手动跳课、插件加载晚了都会错过），一旦错过就整节课不记账。所以真正的判定是
 /// 每秒拿当前时间去课表里查，事件只用来把「最多 1 秒的延迟」压到毫秒级。
@@ -16,7 +16,7 @@ namespace ClassIsland.SleepWatch.Services;
 /// 三个时间点定义得很死：
 /// <list type="bullet">
 /// <item>上课 = 当前时间进入某个 <c>TimeType=0</c> 的块；</item>
-/// <item>下课 = 离开那个块，结算时间取**课表上的下课时刻**，不是定时器醒来的时刻；</item>
+/// <item>下课 = 离开那个块，结算时间取<b>课表上的下课时刻</b>，不是定时器醒来的时刻；</item>
 /// <item>课间 = 落在 <c>TimeType=1</c> 的块里，或者落在两块之间的缝里。</item>
 /// </list>
 /// </summary>
@@ -171,7 +171,7 @@ public static class LessonClock
     }
 
     /// <summary>
-    /// 拿一个**指定的时刻**推进一拍，返回是否发生了相位切换。
+    /// 拿一个<b>指定的时刻</b>推进一拍，返回是否发生了相位切换。
     /// 定时器走的是 <see cref="TimetableSync.Now()"/>，而这个入口不读系统时间，
     /// 所以可以喂假时间把一整天快进一遍 —— 自检脚本就是靠它验证判定逻辑的。
     /// </summary>
@@ -408,7 +408,7 @@ public static class LessonClock
 
     /// <summary>
     /// 结算时刻。
-    /// 如果这一拍才越过课表上的下课点（比如定时器卡了两秒），就用**课表上的下课时刻**，
+    /// 如果这一拍才越过课表上的下课点（比如定时器卡了两秒），就用<b>课表上的下课时刻</b>，
     /// 而不是现在。这样曲线和时长都不会因为 UI 卡顿而被拉长。
     /// </summary>
     private static DateTime SettleTime(DateTime now)

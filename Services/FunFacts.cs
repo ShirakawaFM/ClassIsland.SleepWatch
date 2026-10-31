@@ -15,7 +15,7 @@ public sealed class FactItem
 /// <summary>
 /// 把一节课的记录翻译成人话。
 ///
-/// 原则：只用真实算得出来的数，凑不够 20 条就少几条 —— 不编造、不注水。
+/// 原则：只用真实算得出来的数，凑不够 20 条就少几条，不编造、不注水。
 /// 语气按"同学之间互相调侃"来写，不针对具体人（本来也认不出是谁）。
 /// </summary>
 public static class FunFactWriter
@@ -70,7 +70,7 @@ public static class FunFactWriter
         if (lesson.Length.TotalMinutes > 1)
         {
             var per = lesson.Length.TotalSeconds / Math.Max(1, eps.Count);
-            list.Add($"平均每 {Len(per)} 就有一个人趴下，节拍相当稳定。");
+            list.Add($"平均每 {Len(per)} 就有一个人趴下，节奏稳得像打卡。");
         }
 
         // ---------- 4. 最长的一觉 ----------
@@ -122,7 +122,7 @@ public static class FunFactWriter
             var tail = eps.Count(e => Off(e) >= tailFrom);
             if (tail > 0)
             {
-                list.Add($"最后 5 分钟又倒下 {tail} 个 —— 越到下课越困，这个规律很稳。");
+                list.Add($"最后 5 分钟又倒下 {tail} 个。越到下课越困，这个规律比课表还准。");
             }
         }
 
@@ -228,7 +228,7 @@ public static class FunFactWriter
             }
             else if (head > tail + 0.8)
             {
-                list.Add("开局就很惨，后半节反而缓过来了 —— 大概是讲到有意思的地方了。");
+                list.Add("开局就很惨，后半节反而缓过来了。大概是讲到有意思的地方了。");
             }
             else
             {
