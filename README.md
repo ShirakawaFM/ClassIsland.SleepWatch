@@ -8,7 +8,7 @@
 
 [简体中文](README.md)
 
-[![Version](https://img.shields.io/badge/version-1.3.0-2BE8C4?style=flat-square)](../../releases)
+[![Version](https://img.shields.io/badge/version-1.3.1-2BE8C4?style=flat-square)](../../releases)
 [![ClassIsland](https://img.shields.io/badge/ClassIsland-2.1.1.1%2B-3BE8C4?style=flat-square)](https://classisland.tech)
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com)
 [![Platform](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D4?style=flat-square&logo=windows&logoColor=white)]()
@@ -242,8 +242,9 @@
 
 ### 动画怎么做的
 
-**一条时间轴，60fps。** 所有动画都挂在 `TopLevel.RequestAnimationFrame` 上，跟显示器垂直同步对齐，
+**一条时间轴。** 入场动画挂在 `TopLevel.RequestAnimationFrame` 上，跟显示器垂直同步对齐，
 而不是 `DispatcherTimer`（16ms 的定时器实际会抖成 16/32/48，看起来就是一顿一顿的）。
+动画只跑入场这 0.7 秒，数字滚到位、卡片浮起来就收工 —— 页面停在那儿等着翻页的十几秒里没有任何东西在刷新。
 
 | 元素 | 入场 |
 | --- | --- |
@@ -276,7 +277,8 @@
 整页是暖米色纸感 + 衬线大标题 + 陶土色点缀（就是 Claude 那种调子），背景是一层**会流动的像素**：
 
 - 先渲染一张约 110×80 的小位图，再用最近邻放大铺满窗口 —— 硬边像素块是放大的副产物，不用画几万个矩形
-- 每帧只做整数加法和查表（正弦值预存在 1024 长度的表里），60fps 下 CPU 基本感觉不到
+- 每帧只做整数加法和查表（正弦值预存在 1024 长度的表里），像素索引按固定步长递增，不用每个像素乘一遍
+- 上限 30fps，而且相位没变的那一帧直接跳过：扫描带一秒才走十七行，60fps 和 30fps 在屏幕上分不出来，一体机上却是一倍的开销
 - 三层不同速度的正弦场叠出慢慢漂移的"热斑"；一道扫描带每 7 秒走一趟；十几颗亮点按固定节拍**整格跳动**，不是平滑滑动
 - 配色可以整套换：内置暖橘 / 午夜 / 苔绿 / 海盐 / 樱花 / 墨白六套预设，也能直接填四个十六进制颜色
 
@@ -552,6 +554,14 @@ ClassIsland.SleepWatch/
 - [ ] 周报：把一周的曲线叠在一张图上
 
 ## 版本记录
+
+**1.3.1**
+- 修：换配色之后，配置抽屉里的字不跟着变。勾选框标签、色值输入框、"总结页配置"这些标题原先吃的是 ClassIsland 自己的主题色，主程序开着深色模式时就是白字落在浅色底上，整片看不见；现在整页文字统一由配色资源着色，输入框和滚动条跟着底色亮暗切主题变体
+- 修：点配色预设时，预设按钮是在换色之前重建的，名字总慢一代 —— 从深色主题切回浅色主题就能看见白底白字
+- 提速：像素背景封顶 30fps，相位没变化的帧整帧跳过
+- 提速：入场动画播完就停掉渲染帧循环，自动翻页交给 250ms 的定时器；暂停之后什么都不转
+- 提速：姿态模型输出不再每帧新开一块 1.9MB 的数组，抓帧、缩放、眼部评分的临时对象全部复用
+- 提速：主界面状态灯不再每 300ms 换一次画刷，课表状态那处反射也不再每秒查一遍属性
 
 **1.3.0**
 - 课后总结重做成小弹窗（920×640）：一个巨型数字 + 三个关键词 + 一张会长的图，末页自动关

@@ -55,7 +55,23 @@ public sealed class PoseDetector : IDisposable
     private const int InputSize = 640;
     private const int Attrib = 56; // 4 框 + 1 置信度 + 17×3 关键点
 
+    /// <summary>关键点置信度下限。低于这个值就当这个点没测出来。</summary>
+    private const float ConfOk = 0.25f;
+
+    /// <summary>眼部长边的目标尺寸。裁一块眼睛放大到这个大小再数暗像素。</summary>
+    private const int EyeSampleWidth = 24;
+    private const int EyeSampleHeight = 16;
+
     private OpenCvSharp.Dnn.Net? _net;
+
+    // 推理输出一帧就是 56×8400 个 float，按每秒 4 帧算，每帧新开一个 1.9MB 的数组
+    // 一年能把小对象堆推上去几十个 G —— 复用同一块，读之前只覆盖有效长度
+    private float[] _decode = Array.Empty<float>();
+
+    // 眼部评分：一帧里有多少人就有多少人×2 次 ROI 缩放，临时 Mat 也复用
+    private Mat? _gray;
+    private Mat? _eye;
+    private readonly byte[] _eyePixels = new byte[EyeSampleWidth * EyeSampleHeight];
 
     public bool IsReady => _net != null;
     public string LastError { get; private set; } = "";
@@ -131,10 +147,21 @@ public sealed class PoseDetector : IDisposable
             var total = (long)Attrib * anchors;
             if (total <= 0 || total > 64_000_000) return result;
 
-            var data = new float[total];
+            if (_decode.Length < total) _decode = new float[total];
+            var data = _decode;
 
-            using var flat = output.IsContinuous() ? output : output.Clone();
-            Marshal.Copy(flat.Data, data, 0, (int)total);
+            // 输出几乎总是连续的。万一不是，才复制一份出来读 —— 但复制完就扔，
+            // 不再让 Mat 的 Clone 每帧多留一块非托管内存
+            var flat = output.IsContinuous() ? null : output.Clone();
+
+            try
+            {
+                Marshal.Copy(flat is null ? output.Data : flat.Data, data, 0, (int)total);
+            }
+            finally
+            {
+                flat?.Dispose();
+            }
 
             var candidates = new List<PosePerson>();
 
@@ -180,14 +207,14 @@ public sealed class PoseDetector : IDisposable
                 result.Add(person);
             }
 
-            if (result.Count > 0)
+            if (result.Count > 0 && result.Exists(CanJudgeEyes))
             {
-                using var gray = new Mat();
-                Cv2.CvtColor(bgr, gray, ColorConversionCodes.BGR2GRAY);
+                _gray ??= new Mat();
+                Cv2.CvtColor(bgr, _gray, ColorConversionCodes.BGR2GRAY);
 
                 foreach (var person in result)
                 {
-                    EvaluateEyes(gray, person, eyeThreshold);
+                    EvaluateEyes(_gray, person, eyeThreshold);
                 }
             }
         }
@@ -214,17 +241,15 @@ public sealed class PoseDetector : IDisposable
         var k = person.Kpts;
         if (k.Length < 17) return;
 
-        const float confOk = 0.25f;
-
-        var hasShoulders = k[5].Score > confOk && k[6].Score > confOk;
+        var hasShoulders = k[5].Score > ConfOk && k[6].Score > ConfOk;
         var shoulderW = hasShoulders ? Math.Abs(k[6].X - k[5].X) : 0f;
 
         // 头部参考点：优先鼻子，其次眼睛，再退到耳朵
         float headY = float.NaN;
-        if (k[0].Score > confOk) headY = k[0].Y;
-        else if (k[1].Score > confOk && k[2].Score > confOk) headY = (k[1].Y + k[2].Y) / 2f;
-        else if (k[3].Score > confOk) headY = k[3].Y;
-        else if (k[4].Score > confOk) headY = k[4].Y;
+        if (k[0].Score > ConfOk) headY = k[0].Y;
+        else if (k[1].Score > ConfOk && k[2].Score > ConfOk) headY = (k[1].Y + k[2].Y) / 2f;
+        else if (k[3].Score > ConfOk) headY = k[3].Y;
+        else if (k[4].Score > ConfOk) headY = k[4].Y;
 
         if (hasShoulders && shoulderW > 8 && !float.IsNaN(headY))
         {
@@ -240,8 +265,8 @@ public sealed class PoseDetector : IDisposable
         // 肩线看不见时，退回到人体框的宽高比。但前提是至少能看到头部的某些点；
         // 完全看不到（背对镜头、只拍到后脑勺）时不能下结论，否则会把"背对"误判成"低头"。
         var anyHeadVisible =
-            k[0].Score > confOk || k[1].Score > confOk || k[2].Score > confOk ||
-            k[3].Score > confOk || k[4].Score > confOk;
+            k[0].Score > ConfOk || k[1].Score > ConfOk || k[2].Score > ConfOk ||
+            k[3].Score > ConfOk || k[4].Score > ConfOk;
 
         if (anyHeadVisible)
         {
@@ -260,19 +285,31 @@ public sealed class PoseDetector : IDisposable
     }
 
     /// <summary>
+    /// 这张脸值不值得去数眼白：框太小、眼睛关键点没出来，看了也是噪声。
+    /// 和 <see cref="EvaluateEyes"/> 开头的两道闸门是同一套判断 —— 这里先过一遍，
+    /// 免得整帧转灰度转了却一个人都用不上。
+    /// </summary>
+    private static bool CanJudgeEyes(PosePerson person)
+    {
+        var k = person.Kpts;
+        if (k.Length < 17) return false;
+        if (person.Box.Width < 26) return false;
+
+        return k[1].Score > ConfOk || k[2].Score > ConfOk;
+    }
+
+    /// <summary>
     /// 睁眼判定：拿姿态模型给的眼睛关键点，裁一小块算"暗像素占比"。
     /// 睁眼时虹膜是一块明显暗区，闭眼时基本是均匀肤色。
     /// 看不清（脸太小、被挡、过曝）就标记为不可判，不能当作闭眼。
     /// </summary>
-    private static void EvaluateEyes(Mat gray, PosePerson person, double threshold)
+    private void EvaluateEyes(Mat gray, PosePerson person, double threshold)
     {
         var k = person.Kpts;
         if (k.Length < 17) return;
 
-        const float confOk = 0.25f;
-
-        var hasLeft = k[1].Score > confOk;
-        var hasRight = k[2].Score > confOk;
+        var hasLeft = k[1].Score > ConfOk;
+        var hasRight = k[2].Score > ConfOk;
 
         if (!hasLeft && !hasRight) return;
 
@@ -287,7 +324,7 @@ public sealed class PoseDetector : IDisposable
             var dy = k[2].Y - k[1].Y;
             scaleRef = (float)Math.Sqrt(dx * dx + dy * dy);
         }
-        else if (k[3].Score > confOk && k[4].Score > confOk)
+        else if (k[3].Score > ConfOk && k[4].Score > ConfOk)
         {
             scaleRef = Math.Abs(k[4].X - k[3].X) * 0.45f;
         }
@@ -311,7 +348,7 @@ public sealed class PoseDetector : IDisposable
         person.EyesOpen = best > threshold;
     }
 
-    private static double EyeOpenScore(Mat gray, float eyeX, float eyeY, int radius)
+    private double EyeOpenScore(Mat gray, float eyeX, float eyeY, int radius)
     {
         try
         {
@@ -328,14 +365,16 @@ public sealed class PoseDetector : IDisposable
             if (w < 3 || h < 3) return -1;
 
             using var roi = new Mat(gray, new Rect(x, y, w, h));
-            using var small = new Mat();
-            Cv2.Resize(roi, small, new Size(24, 16), 0, 0, InterpolationFlags.Area);
 
-            var total = small.Rows * small.Cols;
-            if (total <= 0 || !small.IsContinuous()) return -1;
+            _eye ??= new Mat();
+            Cv2.Resize(roi, _eye, new Size(EyeSampleWidth, EyeSampleHeight), 0, 0, InterpolationFlags.Area);
 
-            var buffer = new byte[total];
-            Marshal.Copy(small.Data, buffer, 0, total);
+            var total = _eye.Rows * _eye.Cols;
+            if (total <= 0 || !_eye.IsContinuous()) return -1;
+            if (total > _eyePixels.Length) return -1;
+
+            var buffer = _eyePixels;
+            Marshal.Copy(_eye.Data, buffer, 0, total);
 
             double sum = 0;
             for (var i = 0; i < total; i++) sum += buffer[i];
@@ -411,5 +450,13 @@ public sealed class PoseDetector : IDisposable
     {
         _net?.Dispose();
         _net = null;
+
+        _gray?.Dispose();
+        _gray = null;
+
+        _eye?.Dispose();
+        _eye = null;
+
+        _decode = Array.Empty<float>();
     }
 }

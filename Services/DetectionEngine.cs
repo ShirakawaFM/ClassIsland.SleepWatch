@@ -59,6 +59,11 @@ public sealed class DetectionEngine : IDisposable
     private PoseDetector? _pose;
     private readonly PersonTracker _tracker = new();
 
+    // 抓帧和缩放的 Mat 常驻复用：摄像头的分辨率不会变，每帧新开一块
+    // 只是把同样的几 MB 内存搬来搬去，还给 GC 添活
+    private Mat? _frame;
+    private Mat? _small;
+
     private DetectionSettings _settings = new();
     private byte[]? _previewPng;
     private string _status = "未启动";
@@ -138,6 +143,12 @@ public sealed class DetectionEngine : IDisposable
         _pose?.Dispose();
         _pose = null;
 
+        _frame?.Dispose();
+        _frame = null;
+
+        _small?.Dispose();
+        _small = null;
+
         lock (_gate)
         {
             _previewPng = null;
@@ -195,8 +206,8 @@ public sealed class DetectionEngine : IDisposable
                     continue;
                 }
 
-                using var frame = new Mat();
-                if (_capture == null || !_capture.Read(frame) || frame.Empty())
+                _frame ??= new Mat();
+                if (_capture == null || !_capture.Read(_frame) || _frame.Empty())
                 {
                     Status = "读取画面失败，重连中…";
                     ReleaseCapture();
@@ -204,7 +215,7 @@ public sealed class DetectionEngine : IDisposable
                     continue;
                 }
 
-                ProcessFrame(frame, token);
+                ProcessFrame(_frame, token);
             }
             catch (Exception ex)
             {
@@ -322,8 +333,9 @@ public sealed class DetectionEngine : IDisposable
         var scale = targetW / (double)frame.Width;
         var targetH = Math.Max(1, (int)(frame.Height * scale));
 
-        using var small = new Mat();
-        Cv2.Resize(frame, small, new Size(targetW, targetH), 0, 0, InterpolationFlags.Area);
+        _small ??= new Mat();
+        Cv2.Resize(frame, _small, new Size(targetW, targetH), 0, 0, InterpolationFlags.Area);
+        var small = _small;
 
         var now = DateTime.Now;
 

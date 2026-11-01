@@ -31,6 +31,9 @@ public partial class SleepMonitorComponent : ComponentBase<SleepMonitorSettings>
     private bool _silent;
     private DateTime _silentCheckedAt = DateTime.MinValue;
 
+    // 状态灯当前显示的颜色，跟目标一样就不用重设
+    private string _dotKey = "";
+
     public SleepMonitorComponent()
     {
         InitializeComponent();
@@ -201,13 +204,19 @@ public partial class SleepMonitorComponent : ComponentBase<SleepMonitorSettings>
 
     private void SetDot(string hex)
     {
+        // 状态灯 300ms 刷一次，但颜色一节课也未必变几回。
+        // 每拍都换一个新画刷，等于让主界面每秒重画三次状态灯，纯属白烧。
+        if (hex == _dotKey) return;
+
         try
         {
             _dot.Background = new SolidColorBrush(Color.Parse(hex));
+            _dotKey = hex;
         }
         catch
         {
             // 颜色解析失败不影响显示
+            _dotKey = "";
         }
     }
 }

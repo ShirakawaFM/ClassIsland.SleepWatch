@@ -12,6 +12,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 
 using ClassIsland.SleepWatch.Controls;
@@ -57,6 +58,8 @@ public partial class SummaryWindow : Window
     private int _index;
 
     private FrameDriver? _frames;
+    private DispatcherTimer? _advance;   // 自动翻页：卡片停着的时候只有它在走
+    private readonly Stopwatch _pageClock = new();
     private double _pageAge;      // 这一页停多久了，管自动翻页
     private double _entrance;     // 入场动画走了多远，管数字/柱子/卡片
     private double _lastFrame = -1;
@@ -69,6 +72,9 @@ public partial class SummaryWindow : Window
     private readonly List<Border> _chips = new();
     private readonly List<Control> _factRows = new();
     private readonly TranslateTransform _bodyShift = new();
+
+    /// <summary>翻页圆点共用一只手指光标，别每次重建都新造一个平台光标。</summary>
+    private static readonly Cursor HandCursor = new(StandardCursorType.Hand);
 
     private Color _bg = Color.Parse("#F7F4EC");
     private Color _surface = Color.Parse("#FFFCF6");
@@ -103,12 +109,22 @@ public partial class SummaryWindow : Window
         RenderPage(0, animate: true);
         StartFrames();
 
+        // 翻页只看"这一页停了多久"，用不着每帧算一遍。
+        // 250ms 一拍，够把 7 秒的停留卡在肉眼看不出的误差里。
+        _advance = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        _advance.Tick += (_, _) => OnAdvanceTick();
+
         KeyDown += OnKeyDown;
 
         Closed += (_, _) =>
         {
             _frames?.Dispose();
             _frames = null;
+
+            _advance?.Stop();
+            _advance = null;
+            _pageClock.Stop();
+
             if (ReferenceEquals(_instance, this)) _instance = null;
         };
 
@@ -219,6 +235,12 @@ public partial class SummaryWindow : Window
 
     private void StartFrames()
     {
+        if (_frames != null)
+        {
+            _frames.Start();
+            return;
+        }
+
         try
         {
             var top = TopLevel.GetTopLevel(this);
@@ -233,13 +255,26 @@ public partial class SummaryWindow : Window
         }
     }
 
+    /// <summary>入场动画不需要的帧，别占着刷新率 —— 播完就停。</summary>
+    private void StopFrames() => _frames?.Stop();
+
     private void RestartClock()
     {
         _pageAge = 0;
         _entrance = 0;
         _lastFrame = -1;
+        _pageClock.Restart();
+
+        StartFrames();
     }
 
+    /// <summary>
+    /// 入场动画的每一帧。
+    ///
+    /// 只跑入场这段时间（<see cref="EnterSeconds"/> 秒），数字滚到位、卡片浮起来就收工。
+    /// 以前这条循环是常驻的：页面停在那儿等着自动翻页的十几秒里，它还在 60fps 空转，
+    /// 一体机上这笔开销实打实。翻页改成按秒计时的定时器之后，这里不再需要常驻。
+    /// </summary>
     private void OnFrame(TimeSpan elapsed)
     {
         var now = elapsed.TotalSeconds;
@@ -252,7 +287,6 @@ public partial class SummaryWindow : Window
         // 切窗口 / 拖窗口可能让一帧变得很长，别把那一下算进动画
         if (delta < 0 || delta > 0.5) delta = 1.0 / 60;
 
-        _pageAge += delta;
         _entrance += delta;
 
         var p = Math.Min(1, _entrance / EnterSeconds);
@@ -263,7 +297,15 @@ public partial class SummaryWindow : Window
         // "从零弹升"的过程基本看不见
         _ui.Chart.SetProgress(Ease.Segment(p, 0.06, 1));
 
+        if (p >= 1) StopFrames();
+    }
+
+    /// <summary>自动翻页 / 末页自动关窗。翻页是"到点做事"，跟渲染帧没有关系。</summary>
+    private void OnAdvanceTick()
+    {
         if (!_playing || _pages.Count == 0) return;
+
+        _pageAge = _pageClock.Elapsed.TotalSeconds;
 
         // 末页：停几秒自己关；其余页：时间到就翻
         if (_index == _pages.Count - 1)
@@ -479,6 +521,22 @@ public partial class SummaryWindow : Window
 
         Background = new SolidColorBrush(_bg);
 
+        // 整页的默认字色：模板生成的那些文字（按钮内容、勾选项）也会继承到这个值
+        Foreground = TextBrush();
+
+        // 配置面板里没有 x:Name 的标题、勾选项、输入框全靠这几个资源着色，
+        // 换配色时替换资源本身，绑在上面的控件会自己刷新
+        Resources["SwText"] = TextBrush();
+        Resources["SwTextSoft"] = TextBrush(0.78);
+        Resources["SwTextDim"] = TextBrush(0.55);
+        Resources["SwTextFaint"] = TextBrush(0.42);
+        Resources["SwAccent"] = AccentBrush();
+        Resources["SwField"] = TextBrush(0.045);
+
+        // 输入框、滚动条、勾选标记这些是模板画的，颜色来自主题变体；
+        // 跟着底色亮暗切换，深色底上才不会出现"浅底白字"或者反过来
+        RequestedThemeVariant = Luminance(_bg) > 0.5 ? ThemeVariant.Light : ThemeVariant.Dark;
+
         _ui.Flow.BackgroundColor = _bg;
         _ui.Flow.AccentColor = _accent;
         _ui.Flow.CellSize = _cfg.PixelSize;
@@ -502,6 +560,7 @@ public partial class SummaryWindow : Window
 
         _ui.ChartCard.Background = TextBrush(0.025);
         _ui.ChartCard.BorderBrush = TextBrush(0.12);
+        _ui.ChartTitle.Foreground = TextBrush(0.75);
         _ui.PeakBadge.Foreground = TextBrush(0.7);
 
         _ui.FactsHost.Background = TextBrush(0.025);
@@ -530,12 +589,13 @@ public partial class SummaryWindow : Window
         _ui.HeaderSub.Text = _sample ? "示例数据 · 不写入历史" : "静默检测 · 全程无打扰";
     }
 
+    /// <summary>底色是亮是暗。用来决定输入框这些模板控件该走浅色还是深色主题变体。</summary>
+    private static double Luminance(Color c)
+        => (0.299 * c.R + 0.587 * c.G + 0.114 * c.B) / 255.0;
+
     /// <summary>在给定底色上，黑字还是白字更清楚。</summary>
     private static Color ContrastOn(Color background)
-    {
-        var luminance = (0.299 * background.R + 0.587 * background.G + 0.114 * background.B) / 255.0;
-        return luminance > 0.62 ? Color.Parse("#1F1C19") : Colors.White;
-    }
+        => Luminance(background) > 0.62 ? Color.Parse("#1F1C19") : Colors.White;
 
     // ================= 渲染一页 =================
 
@@ -625,8 +685,13 @@ public partial class SummaryWindow : Window
         // 入场动画从头开始；不播动画时把入场时间轴推到头，
         // 否则下一帧又会从 0 开始算，改个勾选都能看见内容重播一遍
         _pageAge = 0;
+        _pageClock.Restart();
         _entrance = animate ? 0 : SettledAge;
         AnimateEnter(animate ? 0 : 1);
+
+        // 要播入场才把帧循环拉起来，静态页让它继续歇着
+        if (animate) StartFrames();
+        else StopFrames();
 
         _building = false;
     }
@@ -743,7 +808,7 @@ public partial class SummaryWindow : Window
                 Height = 7,
                 CornerRadius = new CornerRadius(3.5),
                 Background = i == _index ? AccentBrush() : TextBrush(0.16),
-                Cursor = new Cursor(StandardCursorType.Hand)
+                Cursor = HandCursor
             };
 
             var target = i;
@@ -794,6 +859,10 @@ public partial class SummaryWindow : Window
         _playing = _cfg.AutoPlay && _pages.Count > 1;
 
         _ui.PlayButton.Content = _playing ? "暂停" : "播放";
+
+        // 暂停了就彻底停下来：不留一个空转的定时器
+        if (_advance != null) _advance.IsEnabled = _playing;
+
         BuildDots();
     }
 
@@ -871,10 +940,14 @@ public partial class SummaryWindow : Window
                 _cfg.Accent = captured.Accent;
                 _cfg.Text = captured.Text;
                 Commit();
+
+                // 顺序有讲究：先换配色再重建预设按钮。
+                // 反过来的话，按钮上的名字和描边还是按上一套文字色画的，
+                // 从深色主题切回浅色主题时，那几行字就成了白底白字。
+                ApplyTheme();
                 SyncConfigToUi();
                 BuildPresets();
 
-                ApplyTheme();
                 RenderPage(_index, animate: true);
                 RestartClock();
             };
@@ -1038,7 +1111,10 @@ public partial class SummaryWindow : Window
 
             apply(value);
             Commit();
+
+            // 预设按钮上的色块和名字是按当前文字色画的，手改完文字色要跟着重建
             ApplyTheme();
+            BuildPresets();
             RenderPage(_index, animate: false);
         }
 

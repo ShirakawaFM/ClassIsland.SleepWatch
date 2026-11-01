@@ -11,7 +11,36 @@
     Background="#F7F4EC"
     FontFamily="Segoe UI, Microsoft YaHei">
 
+    <!--
+        整页的颜色只在 ApplyTheme() 里换，换法是替换这几个画刷资源。
+        下面的样式把它们绑到每一种文字控件上，所以配置面板里的标题、勾选项、
+        输入框、滑块标签都会跟着主题走 —— 这些控件没有自己的 x:Name，
+        早先是靠"什么都不设"吃 ClassIsland 的主题色，主程序一旦是深色模式，
+        白字就落在浅色底上，整片看不见。
+    -->
+    <Window.Resources>
+        <SolidColorBrush x:Key="SwText" Color="#2E2A26" />
+        <SolidColorBrush x:Key="SwTextSoft" Color="#2E2A26" />
+        <SolidColorBrush x:Key="SwTextDim" Color="#2E2A26" />
+        <SolidColorBrush x:Key="SwTextFaint" Color="#2E2A26" />
+        <SolidColorBrush x:Key="SwAccent" Color="#D97757" />
+        <SolidColorBrush x:Key="SwField" Color="#F5F1E8" />
+    </Window.Resources>
+
     <Window.Styles>
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource SwText}" />
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Margin" Value="0,2,0,2" />
+            <Setter Property="Foreground" Value="{DynamicResource SwText}" />
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Foreground" Value="{DynamicResource SwText}" />
+            <Setter Property="Background" Value="{DynamicResource SwField}" />
+            <Setter Property="CaretBrush" Value="{DynamicResource SwText}" />
+        </Style>
         <Style Selector="Button.tool">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="1" />
@@ -19,29 +48,25 @@
             <Setter Property="CornerRadius" Value="10" />
             <Setter Property="Padding" Value="12,5" />
             <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="#2E2A26" />
+            <Setter Property="Foreground" Value="{DynamicResource SwTextSoft}" />
             <Setter Property="MinWidth" Value="0" />
         </Style>
         <Style Selector="Button.tool:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#1A808080" />
-            <Setter Property="TextElement.Foreground" Value="#2E2A26" />
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource SwText}" />
         </Style>
         <Style Selector="Button.accent">
-            <Setter Property="Background" Value="#D97757" />
+            <Setter Property="Background" Value="{DynamicResource SwAccent}" />
             <Setter Property="Foreground" Value="#FFF9F4" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="CornerRadius" Value="10" />
             <Setter Property="Padding" Value="14,6" />
             <Setter Property="FontSize" Value="12" />
         </Style>
-        <Style Selector="CheckBox">
-            <Setter Property="FontSize" Value="12.5" />
-            <Setter Property="Margin" Value="0,2,0,2" />
-        </Style>
         <!-- 勾选框默认是系统蓝，跟整页配色不搭，改成主题色 -->
         <Style Selector="CheckBox:checked /template/ Border#NormalRectangle">
-            <Setter Property="Background" Value="#D97757" />
-            <Setter Property="BorderBrush" Value="#D97757" />
+            <Setter Property="Background" Value="{DynamicResource SwAccent}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SwAccent}" />
         </Style>
         <Style Selector="TextBox.hex">
             <Setter Property="FontFamily" Value="Consolas, monospace" />

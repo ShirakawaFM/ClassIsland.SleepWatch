@@ -45,6 +45,11 @@ public sealed class SleepCurveChart : Control
     private IBrush _accentBrush = Brushes.Orange;
     private IBrush[] _barBody = Array.Empty<IBrush>();
     private Pen? _linePen;
+    private Pen? _peakPen;
+
+    // 柱子顶端和"长完了没有"每帧重算，数组换成复用的，省掉入场那 0.7 秒里的 GC
+    private Point[] _tops = Array.Empty<Point>();
+    private bool[] _grown = Array.Empty<bool>();
 
     private int _max = 1;
     private int _steps;
@@ -107,7 +112,14 @@ public sealed class SleepCurveChart : Control
             _barBody[i] = new SolidColorBrush(_accent, 0.16 + 0.44 * Math.Min(1, ratio));
         }
 
+        if (_tops.Length != _points.Count)
+        {
+            _tops = new Point[_points.Count];
+            _grown = new bool[_points.Count];
+        }
+
         _linePen = new Pen(_accentBrush, 1.35);
+        _peakPen = new Pen(_accentBrush, 1, new DashStyle(new double[] { 2, 3 }, 0));
 
         var axis = new FormattedText[_steps + 1];
         for (var i = 0; i <= _steps; i++)
@@ -163,8 +175,14 @@ public sealed class SleepCurveChart : Control
         var slot = plot.Width / count;
         var barWidth = Math.Max(2, Math.Min(13, slot - 2.0));
 
-        var topPoints = new List<Point>(count);
-        var grown = new List<bool>(count);
+        var topPoints = _tops;
+        var grown = _grown;
+
+        if (topPoints.Length < count)
+        {
+            topPoints = _tops = new Point[count];
+            grown = _grown = new bool[count];
+        }
 
         // 每根柱子占时间轴的一小段，前面的先长，整体像一道 wave 从左边扫过去。
         // 起点间距铺满 58% 的时间轴，剩下 42% 留给每根柱子自己长，
@@ -189,13 +207,13 @@ public sealed class SleepCurveChart : Control
                 context.FillRectangle(_accentBrush, new Rect(x, y, barWidth, Math.Min(2.5, height)));
             }
 
-            topPoints.Add(new Point(x + barWidth / 2, y));
-            grown.Add(local > 0.98);
+            topPoints[i] = new Point(x + barWidth / 2, y);
+            grown[i] = local > 0.98;
         }
 
         // ---- 折线：只连已经长完的柱子，避免线头飘在空中 ----
         var ready = 0;
-        while (ready < grown.Count && grown[ready]) ready++;
+        while (ready < count && grown[ready]) ready++;
 
         if (ready > 1)
         {
@@ -227,11 +245,10 @@ public sealed class SleepCurveChart : Control
                 if (_points[i].Sleeping > _points[peakIndex].Sleeping) peakIndex = i;
             }
 
-            if (_points[peakIndex].Sleeping > 0)
+            if (_points[peakIndex].Sleeping > 0 && _peakPen != null)
             {
                 var top = topPoints[peakIndex];
-                var pen = new Pen(_accentBrush, 1, new DashStyle(new double[] { 2, 3 }, 0));
-                context.DrawLine(pen, new Point(top.X, top.Y - 8), new Point(top.X, plot.Bottom));
+                context.DrawLine(_peakPen, new Point(top.X, top.Y - 8), new Point(top.X, plot.Bottom));
                 context.FillRectangle(_accentBrush, new Rect(top.X - 2.5, top.Y - 12, 5, 5));
             }
         }

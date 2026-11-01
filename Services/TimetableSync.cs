@@ -268,6 +268,10 @@ public static class TimetableSync
     // 反射读几个纯展示字段
     // ------------------------------------------------------------------
 
+    /// <summary>反射拿到的属性描述符，只查一次。设置页每秒都会问一遍。</summary>
+    private static PropertyInfo? _stateProperty;
+    private static Type? _statePropertyOwner;
+
     /// <summary>
     /// 读 ClassIsland 自己的相位（<c>LessonsService.CurrentState</c>）。
     /// 只用来在界面上跟我们的判断互相印证，不参与任何决策。
@@ -279,8 +283,16 @@ public static class TimetableSync
             var lessons = IAppHost.GetService<ILessonsService>();
             if (lessons == null) return null;
 
-            var prop = lessons.GetType().GetProperty("CurrentState", BindingFlags.Public | BindingFlags.Instance);
-            var value = prop?.GetValue(lessons);
+            var type = lessons.GetType();
+
+            // 每秒调一次，别每次都走一遍 GetProperty
+            if (_statePropertyOwner != type)
+            {
+                _stateProperty = type.GetProperty("CurrentState", BindingFlags.Public | BindingFlags.Instance);
+                _statePropertyOwner = type;
+            }
+
+            var value = _stateProperty?.GetValue(lessons);
 
             return value?.ToString();
         }

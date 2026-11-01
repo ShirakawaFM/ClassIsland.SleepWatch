@@ -28,6 +28,13 @@ namespace ClassIsland.SleepWatch.Controls;
 /// </summary>
 public sealed class PixelFlowBackground : Control
 {
+    /// <summary>
+    /// 画面最快多久重画一次。像素块、扫描带都慢得很：扫描带一秒才走十七行，
+    /// 三层相位一秒最多跳二十一次。60fps 全窗口重画和 30fps 在屏幕上看不出区别，
+    /// 但一体机上这笔开销是实打实的一半。
+    /// </summary>
+    private const double MinFrameMs = 33;
+
     private WriteableBitmap? _bitmap;
     private int _width;
     private int _height;
@@ -42,6 +49,11 @@ public sealed class PixelFlowBackground : Control
     private Color _accent = Color.Parse("#D97757");
     private int _cell = 7;
     private bool _animated = true;
+
+    // 这一帧的相位；以及上一次真正画出去的相位。两张一样就说明画面没动，直接跳过
+    private int _t1, _t2, _t3, _bandY;
+    private int _lastT1 = int.MinValue, _lastT2, _lastT3, _lastBandY;
+    private double _lastPaintMs = double.MinValue;
 
     /// <summary>亮点。位置是整格量化的，所以看起来是"跳"过去的。</summary>
     private struct Spark
@@ -101,7 +113,11 @@ public sealed class PixelFlowBackground : Control
         get => _cell;
         set
         {
-            _cell = Math.Clamp(value, 4, 18);
+            var cell = Math.Clamp(value, 4, 18);
+
+            // 大小没变就别重建：重建一次位图，十几颗亮点全部重新落位，画面上会闪一下
+            if (cell == _cell) return;
+            _cell = cell;
 
             var had = _bitmap != null;
             _bitmap?.Dispose();
@@ -169,21 +185,62 @@ public sealed class PixelFlowBackground : Control
             Fps = Fps <= 0 ? inst : Fps * 0.9 + inst * 0.1;
         }
 
-        HopSparks(elapsed);
+        if (_bitmap == null) return;
+
+        var stamp = elapsed.TotalMilliseconds;
+        if (stamp - _lastPaintMs < MinFrameMs) return;
+
+        Step();
+
+        var hopped = HopSparks(elapsed);
+
+        // 相位没变、亮点也没跳，这一帧重画出来跟上一帧逐像素一样 —— 整帧跳过。
+        // 画面按整格量化，落在这里的帧本来就没有任何变化。
+        if (!hopped && _t1 == _lastT1 && _t2 == _lastT2 && _t3 == _lastT3 && _bandY == _lastBandY)
+        {
+            return;
+        }
+
+        _lastPaintMs = stamp;
+        _lastT1 = _t1;
+        _lastT2 = _t2;
+        _lastT3 = _t3;
+        _lastBandY = _bandY;
+
         Paint();
         InvalidateVisual();
     }
 
+    /// <summary>
+    /// 按当前秒数算出三个方向的相位和扫描带位置。
+    /// 这几个量都是整数量化的（1/1024 个周期、一整行），所以"算出来一样"就等于"画出来一样"。
+    /// </summary>
+    private void Step()
+    {
+        // 速度刻意取互质的小数，画面很久才重复一次
+        var t = _animated ? _seconds : 0;
+
+        _t1 = (int)(t * 9);       // 水平漂移
+        _t2 = (int)(t * 13);      // 竖直漂移
+        _t3 = (int)(t * 21);      // 斜向
+
+        // 扫描带：每 7 秒走一趟
+        _bandY = (int)((t % 7.0) / 7.0 * (_height + 40)) - 20;
+    }
+
     /// <summary>亮点每 ~130ms 整格挪一次，制造"像素在跳"的手感，而不是平滑飘。</summary>
-    private void HopSparks(TimeSpan elapsed)
+    private bool HopSparks(TimeSpan elapsed)
     {
         var sparks = _sparks;
         var nowMs = (int)elapsed.TotalMilliseconds;
+        var hopped = false;
 
         for (var i = 0; i < sparks.Length; i++)
         {
             var s = sparks[i];
             if (nowMs < s.NextHopMs) continue;
+
+            hopped = true;
 
             s.X += s.Dx;
             s.Y += s.Dy;
@@ -194,6 +251,8 @@ public sealed class PixelFlowBackground : Control
             s.NextHopMs = nowMs + 90 + (i * 17 % 130);
             sparks[i] = s;
         }
+
+        return hopped;
     }
 
     // ---------------- 尺寸与位图 ----------------
@@ -269,14 +328,11 @@ public sealed class PixelFlowBackground : Control
         var w = _width;
         var h = _height;
 
-        // 三个方向上的相位，按秒走。速度刻意取互质的小数，画面很久才重复一次
-        var t = _animated ? _seconds : 0;
-        var t1 = (int)(t * 9);       // 水平漂移
-        var t2 = (int)(t * 13);      // 竖直漂移
-        var t3 = (int)(t * 21);      // 斜向
+        Step();
 
-        // 扫描带：每 7 秒走一趟
-        var bandY = (int)((t % 7.0) / 7.0 * (h + 40)) - 20;
+        var t1 = _t1;
+        var t3 = _t3;
+        var bandY = _bandY;
 
         using var fb = _bitmap.Lock();
 
@@ -284,18 +340,19 @@ public sealed class PixelFlowBackground : Control
         {
             var row = (uint*)((byte*)fb.Address + y * fb.RowBytes);
 
-            var wy = (y * 11 - t2) & 1023;
+            // 三张波形表都做成"每个像素加一个固定步长"，比每次乘一遍再取模便宜
+            var waveY = _wave[((y * 11) - _t2) & 1023];
             var checkerY = (y >> 1) & 1;
 
             var bandDist = Math.Abs(y - bandY);
             var bandBoost = bandDist < 10 ? (10 - bandDist) * 6 : 0;
 
+            var wx = t1 & 1023;
+            var wd = ((y * 5) + t3) & 1023;
+
             for (var x = 0; x < w; x++)
             {
-                var wx = (x * 7 + t1) & 1023;
-                var wd = ((x + y) * 5 + t3) & 1023;
-
-                var v = (_wave[wx] + _wave[wy] + _wave[wd]) / 3;   // -64..64
+                var v = (_wave[wx] + waveY + _wave[wd]) / 3;   // -64..64
 
                 // 只有"高"的地方才吃主题色，低处保持干净，整体不会糊成一片
                 var k = v > 0 ? v * v / 64 : 0;                    // 0..64
@@ -309,6 +366,9 @@ public sealed class PixelFlowBackground : Control
                 var b = (byte)(baseB + spanB * k / 255);
 
                 row[x] = 0xFF000000u | ((uint)r << 16) | ((uint)g << 8) | (uint)b;
+
+                wx = (wx + 7) & 1023;
+                wd = (wd + 5) & 1023;
             }
         }
 
