@@ -21,6 +21,9 @@ public static class SummaryHost
     private static bool _attached;
     private static DispatcherTimer? _flushTimer;
 
+    /// <summary>排着的那个"等几秒再弹"，只留最新一个。<c>RunOnce</c> 返回的是句柄，Dispose 即取消。</summary>
+    private static IDisposable? _popupTimer;
+
     public static void Attach()
     {
         if (_attached) return;
@@ -72,22 +75,57 @@ public static class SummaryHost
             var cfg = SummarySettingsStore.Load();
             if (!cfg.AutoPopupOnLessonEnd) return;
 
-            // 先把 ClassIsland 的强提醒打出去：全屏遮罩 + 提示音，教室里才看得见
             var longest = lesson.Episodes.Count > 0
                 ? FunFactWriter.Duration(lesson.Episodes.Max(e => e.Seconds))
                 : "—";
 
-            StrongAlert.Show(
+            SchedulePopup(
                 lesson.Sleepers > 0 ? $"这节课 {lesson.Sleepers} 个人睡过" : "这节课一个人都没睡",
                 $"{lesson.Title} · 最长一觉 {longest}",
-                8);
+                cfg.PopupDelaySeconds);
+        }
+        catch
+        {
+            // 弹窗失败不能影响下课
+        }
+    }
+
+    /// <summary>
+    /// 按配置把弹窗往后推。0 秒直接弹，跟以前一致；设了延迟就等够时间再走同一条流程。
+    /// 连着两节课只保留最后排的那一次，不会攒出两个窗。
+    /// </summary>
+    private static void SchedulePopup(string title, string detail, int delaySeconds)
+    {
+        _popupTimer?.Dispose();
+        _popupTimer = null;
+
+        if (delaySeconds <= 0)
+        {
+            Popup(title, detail);
+            return;
+        }
+
+        _popupTimer = DispatcherTimer.RunOnce(() =>
+        {
+            _popupTimer = null;
+            Popup(title, detail);
+        }, TimeSpan.FromSeconds(Math.Clamp(delaySeconds, 1, 120)));
+    }
+
+    private static void Popup(string title, string detail)
+    {
+        try
+        {
+            // 先把 ClassIsland 的强提醒打出去：全屏遮罩 + 提示音，教室里才看得见
+            StrongAlert.Show(title, detail, 8);
 
             // 遮罩起来之后再把自己的小窗贴上去，两份信息互补，不打架
             DispatcherTimer.RunOnce(() =>
             {
                 try
                 {
-                    SummaryWindow.Show(cfg, sample: false);
+                    // 延迟期间可能在设置页里改过配色和显示项，弹之前现读一次
+                    SummaryWindow.Show(SummarySettingsStore.Load(), sample: false);
                 }
                 catch
                 {

@@ -46,6 +46,9 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
     private TextBlock _previewPlaceholder = null!;
     private TextBlock _previewInfo = null!;
     private CheckBox _silentBox = null!;
+    private Slider _popupDelaySlider = null!;
+    private TextBlock _popupDelayValue = null!;
+    private TextBlock _popupDelayHint = null!;
     private Button _summaryButton = null!;
     private Button _sampleSummaryButton = null!;
 
@@ -68,6 +71,9 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
     private readonly DispatcherTimer _previewTimer;
     private bool _loading;
 
+    /// <summary>延迟弹出那一项改过，落盘时要单独提示。</summary>
+    private bool _delayDirty;
+
     public SleepWatchSettingsPage()
     {
         InitializeComponent();
@@ -89,7 +95,13 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         _saveTimer.Tick += (_, _) =>
         {
             _saveTimer.Stop();
-            Commit();
+
+            var delayOnly = _delayDirty;
+            _delayDirty = false;
+
+            // 两份配置各写各的文件，一起落盘，谁先拖都不会丢
+            Commit(announce: !delayOnly);
+            CommitPopupDelay(announce: delayOnly);
         };
 
         // 实时画面：约 3 帧/秒刷一次，跟检测帧率无关，纯粹是看效果
@@ -143,6 +155,9 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         _previewPlaceholder = this.FindControl<TextBlock>("PreviewPlaceholder")!;
         _previewInfo = this.FindControl<TextBlock>("PreviewInfo")!;
         _silentBox = this.FindControl<CheckBox>("SilentBox")!;
+        _popupDelaySlider = this.FindControl<Slider>("PopupDelaySlider")!;
+        _popupDelayValue = this.FindControl<TextBlock>("PopupDelayValue")!;
+        _popupDelayHint = this.FindControl<TextBlock>("PopupDelayHint")!;
         _summaryButton = this.FindControl<Button>("SummaryButton")!;
         _sampleSummaryButton = this.FindControl<Button>("SampleSummaryButton")!;
 
@@ -179,11 +194,14 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
 
         try
         {
-            _silentBox.IsChecked = SummarySettingsStore.Load().SilentMode;
+            var summary = SummarySettingsStore.Load();
+            _silentBox.IsChecked = summary.SilentMode;
+            _popupDelaySlider.Value = Clamp(_popupDelaySlider, summary.PopupDelaySeconds);
         }
         catch
         {
             _silentBox.IsChecked = false;
+            _popupDelaySlider.Value = 0;
         }
 
         SyncLabels();
@@ -207,6 +225,10 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         _sleepValue.Text = ((int)Math.Round(_sleepSlider.Value)).ToString();
         _presenceValue.Text = ((int)Math.Round(_presenceSlider.Value)).ToString();
         _eyeValue.Text = _eyeSlider.Value.ToString("0.00");
+
+        var delay = (int)Math.Round(_popupDelaySlider.Value);
+        _popupDelayValue.Text = delay.ToString();
+        _popupDelayHint.Text = delay <= 0 ? "秒。0 就是下课立刻弹" : "秒后才弹出总结窗";
     }
 
     private void WatchSlider(Slider slider)
@@ -237,6 +259,17 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         _autoStopBox.Click += (_, _) => Commit();
 
         _silentBox.Click += (_, _) => CommitSilent();
+
+        // 延迟弹出存在 summary.json 里，跟检测参数不是一份文件，单独走一条保存路径
+        _popupDelaySlider.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != Slider.ValueProperty || _loading) return;
+
+            SyncLabels();
+            _delayDirty = true;
+            _saveTimer.Stop();
+            _saveTimer.Start();
+        };
 
         _syncButton.Click += (_, _) =>
         {
@@ -306,7 +339,9 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         }
     }
 
-    private void Commit()
+    private void Commit() => Commit(announce: true);
+
+    private void Commit(bool announce)
     {
         if (_loading) return;
 
@@ -324,7 +359,34 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
 
         SettingsStore.Save(s);
 
-        _statusText.Text = "已保存。改动需要点【重启监测】才会生效。";
+        if (announce)
+        {
+            _statusText.Text = "已保存。改动需要点【重启监测】才会生效。";
+        }
+    }
+
+    /// <summary>延迟弹出只写 summary.json，改完下一节课就生效，不用重启监测。</summary>
+    private void CommitPopupDelay(bool announce)
+    {
+        if (_loading) return;
+
+        try
+        {
+            var cfg = SummarySettingsStore.Load();
+            cfg.PopupDelaySeconds = (int)Math.Round(_popupDelaySlider.Value);
+            SummarySettingsStore.Save(cfg);
+
+            if (announce)
+            {
+                _statusText.Text = cfg.PopupDelaySeconds <= 0
+                    ? "已保存：下课后立刻弹出总结窗。"
+                    : $"已保存：下课后 {cfg.PopupDelaySeconds} 秒弹出总结窗。";
+            }
+        }
+        catch
+        {
+            // 写不进去就维持原样
+        }
     }
 
     // ---------- 课表状态 ----------
@@ -413,7 +475,15 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
             }
             else
             {
-                _statusText.Text = $"已模拟下课：{finished.Title}，记到 {lesson.Episodes.Count} 段睡眠。按配置{(SummarySettingsStore.Load().AutoPopupOnLessonEnd ? "应当已弹出" : "不自动弹（没开自动弹窗）")}。";
+                var cfg = SummarySettingsStore.Load();
+
+                var when = !cfg.AutoPopupOnLessonEnd
+                    ? "不自动弹（没开自动弹窗）"
+                    : cfg.PopupDelaySeconds <= 0
+                        ? "应当已经弹出来了"
+                        : $"应当会在 {cfg.PopupDelaySeconds} 秒后弹出来";
+
+                _statusText.Text = $"已模拟下课：{finished.Title}，记到 {lesson.Episodes.Count} 段睡眠。按配置{when}。";
             }
 
             UpdatePhase();

@@ -8,7 +8,7 @@
 
 [简体中文](README.md)
 
-[![Version](https://img.shields.io/badge/version-1.3.1-2BE8C4?style=flat-square)](../../releases)
+[![Version](https://img.shields.io/badge/version-1.4.0-2BE8C4?style=flat-square)](../../releases)
 [![ClassIsland](https://img.shields.io/badge/ClassIsland-2.1.1.1%2B-3BE8C4?style=flat-square)](https://classisland.tech)
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com)
 [![Platform](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D4?style=flat-square&logo=windows&logoColor=white)]()
@@ -287,7 +287,7 @@
 窗口右上角【配置】拉开就是一个抽屉，勾选框直接控制显示哪些块（总人数 / 曲线 / 入睡次数 / 已睡醒 / 最长单次 / 同时最多 / 趣味条目），另有：
 
 - 静默检测开关（关掉就是原来的"主界面直接显示人数"）
-- 下课是否自动弹总结
+- 下课是否自动弹总结，以及弹之前延迟几秒
 - 是否逐日自动轮播、每页停留几秒、末页是否自动关
 - 像素块大小、流动动画开关
 
@@ -382,6 +382,19 @@ NotificationProviderBase.ShowNotification(new NotificationRequest {
 ```
 
 用宿主现成的 provider，走的是用户已经配好的提醒样式（声音、位置、动画），不自己造一个新窗口。两条提醒之间至少隔 20 秒，防止连环弹。强提醒之后 1.1 秒才弹总结窗口——先让人抬头，再让人看细节。
+
+### 弹窗可以往后推几秒
+
+下课那几十秒教室里正乱：有人在收书、有人在走动，这时候弹窗基本没人看。设置页「课后总结」里有一项**延迟弹出**（0~120 秒，默认 0）：
+
+| 值 | 行为 |
+| --- | --- |
+| `0` | 下课铃一响就走上面那套流程，跟以前的版本一样 |
+| `N` | 先等 N 秒，再发强提醒，再隔 1.1 秒弹总结窗口 |
+
+延迟期间连强提醒一起等着——只把窗口延后、提醒照旧响，等于提醒完了没人接上，反而更乱。`summary.json` 里是 `PopupDelaySeconds`，改完下一节课就按新的来，不用重启监测。
+
+连续两节课只保留最后排的那一次，不会攒出两个窗。延迟途中在设置页改的配色、显示项，弹出时会重新读一次，不用重开窗口。
 
 ### 试弹：不用等 45 分钟
 
@@ -554,6 +567,12 @@ ClassIsland.SleepWatch/
 - [ ] 周报：把一周的曲线叠在一张图上
 
 ## 版本记录
+
+**1.4.0**
+- 新增「延迟弹出」：下课后可以等 0~120 秒再弹总结，默认 0（下课立刻弹，跟以前一样）。拖堂、学生还在收拾东西的时候推到十几秒更实用
+- 延迟作用在整条流程上：强提醒和总结窗口一起等，不会出现"提醒响完了、窗口还没来"
+- 设置页「课后总结」与窗口配置抽屉里都能调；改完下一节课生效，不用重启监测
+- 连着两节课只保留最后排的那一次，不会攒出两个窗
 
 **1.3.1**
 - 修：换配色之后，配置抽屉里的字不跟着变。勾选框标签、色值输入框、"总结页配置"这些标题原先吃的是 ClassIsland 自己的主题色，主程序开着深色模式时就是白字落在浅色底上，整片看不见；现在整页文字统一由配色资源着色，输入框和滚动条跟着底色亮暗切主题变体

@@ -240,6 +240,14 @@
                                            FontFamily="Consolas, monospace" VerticalAlignment="Center" TextAlignment="Right" />
                             </Grid>
 
+                            <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,12,2">
+                                <TextBlock Text="延迟弹出" FontSize="12" VerticalAlignment="Center" Width="56" Opacity="0.8" />
+                                <Slider x:Name="DelaySlider" Grid.Column="1" Margin="6,0" Minimum="0" Maximum="120"
+                                        TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+                                <TextBlock x:Name="DelayValue" Grid.Column="2" Text="0s" FontSize="12" Width="36"
+                                           FontFamily="Consolas, monospace" VerticalAlignment="Center" TextAlignment="Right" />
+                            </Grid>
+
                             <StackPanel Spacing="5">
                                 <TextBlock Text="配色" FontSize="11.5" FontWeight="SemiBold" Opacity="0.55" />
                                 <WrapPanel x:Name="PresetPanel" />

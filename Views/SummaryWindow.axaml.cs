@@ -417,6 +417,8 @@ public partial class SummaryWindow : Window
 
         public Slider SlideSlider = null!;
         public TextBlock SlideValue = null!;
+        public Slider DelaySlider = null!;
+        public TextBlock DelayValue = null!;
         public Slider PixelSlider = null!;
         public TextBlock PixelValue = null!;
 
@@ -484,6 +486,8 @@ public partial class SummaryWindow : Window
 
             SlideSlider = this.FindControl<Slider>("SlideSlider")!,
             SlideValue = this.FindControl<TextBlock>("SlideValue")!,
+            DelaySlider = this.FindControl<Slider>("DelaySlider")!,
+            DelayValue = this.FindControl<TextBlock>("DelayValue")!,
             PixelSlider = this.FindControl<Slider>("PixelSlider")!,
             PixelValue = this.FindControl<TextBlock>("PixelValue")!,
 
@@ -976,6 +980,9 @@ public partial class SummaryWindow : Window
         _ui.SlideSlider.Value = Math.Clamp(_cfg.SlideSeconds, 3, 30);
         _ui.SlideValue.Text = $"{_cfg.SlideSeconds}s";
 
+        _ui.DelaySlider.Value = Math.Clamp(_cfg.PopupDelaySeconds, 0, 120);
+        _ui.DelayValue.Text = _cfg.PopupDelaySeconds <= 0 ? "立刻" : $"{_cfg.PopupDelaySeconds}s";
+
         _ui.PixelSlider.Value = Math.Clamp(_cfg.PixelSize, 4, 16);
         _ui.PixelValue.Text = _cfg.PixelSize.ToString();
 
@@ -1036,6 +1043,16 @@ public partial class SummaryWindow : Window
             _ui.SlideValue.Text = $"{_cfg.SlideSeconds}s";
             Commit();
             BuildDots();
+        };
+
+        _ui.DelaySlider.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != Slider.ValueProperty || _building) return;
+
+            // 只影响下课那次自动弹窗，当前这一页不用重画
+            _cfg.PopupDelaySeconds = (int)Math.Round(_ui.DelaySlider.Value);
+            _ui.DelayValue.Text = _cfg.PopupDelaySeconds <= 0 ? "立刻" : $"{_cfg.PopupDelaySeconds}s";
+            Commit();
         };
 
         _ui.PixelSlider.PropertyChanged += (_, e) =>

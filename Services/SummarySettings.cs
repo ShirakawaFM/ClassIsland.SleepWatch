@@ -39,6 +39,12 @@ public class SummarySettings
     /// <summary>下课自动弹出总结窗口。</summary>
     public bool AutoPopupOnLessonEnd { get; set; } = true;
 
+    /// <summary>
+    /// 下课之后隔多少秒再弹。0 表示下课立刻弹，跟最早的版本一样。
+    /// 拖堂、学生还在收拾东西的时候可以往后推十几秒。
+    /// </summary>
+    public int PopupDelaySeconds { get; set; }
+
     /// <summary>窗口里自动逐日轮播。</summary>
     public bool AutoPlay { get; set; } = true;
 
@@ -80,6 +86,8 @@ public class SummarySettings
         if (SlideSeconds > 60) SlideSeconds = 60;
         if (HistoryDays < 1) HistoryDays = 1;
         if (HistoryDays > 30) HistoryDays = 30;
+        if (PopupDelaySeconds < 0) PopupDelaySeconds = 0;
+        if (PopupDelaySeconds > 120) PopupDelaySeconds = 120;
         if (PixelSize < 4) PixelSize = 4;
         if (PixelSize > 18) PixelSize = 18;
 
