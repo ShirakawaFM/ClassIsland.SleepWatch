@@ -4,7 +4,7 @@ description: 按「连续静置时长」判断谁睡着了：静置进疑似、�
 entranceAssembly: "ClassIsland.SleepWatch.dll"
 url: https://github.com/ShirakawaFM/ClassIsland.SleepWatch
 author: ShirakawaFM / 白川方明
-version: 1.5.1.0
+version: 1.5.2.0
 # 这是给 ClassIsland 2.2 预览版（Misha）用的构建：net10 + Avalonia 12 + SDK 2.1.1.1。
 # apiVersion 必须写 2.1.1.1，否则正式版用户会误装这个包然后加载失败。
 # 包名里的 2.1.1.1 指的就是这个宿主版本。

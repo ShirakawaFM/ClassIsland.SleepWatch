@@ -10,7 +10,7 @@
 
 [简体中文](README.md)
 
-[![Version](https://img.shields.io/badge/version-1.5.1-2BE8C4?style=flat-square)](../../releases)
+[![Version](https://img.shields.io/badge/version-1.5.2-2BE8C4?style=flat-square)](../../releases)
 [![ClassIsland](https://img.shields.io/badge/ClassIsland-2.1.0.1%2B-3BE8C4?style=flat-square)](https://classisland.tech)
 [![.NET](https://img.shields.io/badge/.NET-8-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com)
 [![Platform](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D4?style=flat-square&logo=windows&logoColor=white)]()
@@ -191,7 +191,7 @@
 | **2.1.0.1（正式版，绝大多数人）** | `ClassIsland.SleepWatch_for_ClassIsland_2.1.0.1.cipx` |
 | 2.2 预览版（`2.1.1.x` / `2.1.2.0`） | `ClassIsland.SleepWatch_for_ClassIsland_2.1.1.1.cipx` |
 
-包名里的数字是**它适配的 ClassIsland 版本**，不是插件版本 —— 插件版本看 Release 的标签号（比如 `1.5.1.0`）。这样文件名直接回答「我这版能不能装」，不用先去翻更新日志。
+包名里的数字是**它适配的 ClassIsland 版本**，不是插件版本 —— 插件版本看 Release 的标签号（比如 `1.5.2.0`）。这样文件名直接回答「我这版能不能装」，不用先去翻更新日志。
 
 两个包代码一样，只是编译环境不同：
 
@@ -673,6 +673,11 @@ ClassIsland.SleepWatch/
 - [ ] 周报：把一周的曲线叠在一张图上
 
 ## 版本记录
+
+**1.5.2**
+- 修「实时画面一直停在『正在等第一帧…』」。1.5.0 把预览渲染从 OpenCV 换成 SkiaSharp 画中文标签时，摄像头帧（3 通道 BGR）被直接当成每像素 4 字节的 BGRA 塞给 Skia，`SKImage.FromPixelCopy` 因「一行字节数不够」返回 null，调用方一句 `if (src == null) return;` 就把整条链路静默掐断了 —— 不报错、不打日志。现在统一走 `PixelBridge` 先转 BGRA
+- 同一个毛病也在快照上：确认沉睡时的截图一张都写不出来。一并修掉
+- 这两处失败原来都是静默的，现在渲染出错会写进日志（Debug 级）
 
 **1.5.1**
 - 修「摄像头调不起来」：设置页枚举时，当前配置的那个设备试开失败会被直接丢掉。而监测正在跑的时候，占着摄像头的就是插件自己，试开当然失败 —— 于是列表里一个设备都没有，看起来像"没摄像头"。现在当前设备不管能不能试开都留在列表里

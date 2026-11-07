@@ -665,10 +665,9 @@ public sealed class DetectionEngine : IDisposable
     {
         try
         {
-            using var src = SKImage.FromPixelCopy(
-                new SKImageInfo(small.Width, small.Height, SKColorType.Bgra8888, SKAlphaType.Opaque),
-                small.Data,
-                (int)small.Step());
+            // BGR → BGRA。少这一步 FromPixelCopy 会返回 null，整条预览链路静默断掉
+            using var bgra = PixelBridge.ToBgra(small);
+            using var src = PixelBridge.ToImage(bgra);
 
             if (src == null) return;
 

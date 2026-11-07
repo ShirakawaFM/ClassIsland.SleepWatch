@@ -156,10 +156,9 @@ public static class SnapshotService
 
         const int headerHeight = 46;
 
-        using var src = SKImage.FromPixelCopy(
-            new SKImageInfo(crop.Width, crop.Height, SKColorType.Bgra8888, SKAlphaType.Opaque),
-            crop.Data,
-            (int)crop.Step());
+        // 同样是 BGR → BGRA，少这一步截图会一张都写不出来
+        using var bgra = PixelBridge.ToBgra(crop);
+        using var src = PixelBridge.ToImage(bgra);
 
         if (src == null) return;
 
