@@ -16,7 +16,7 @@ import zipfile
 root = os.path.dirname(os.path.abspath(__file__))
 cipx_dir = os.path.join(root, "cipx")
 src = os.path.join(cipx_dir, "ClassIsland.SleepWatch.cipx")
-dst = os.path.join(cipx_dir, "ClassIsland.SleepWatch-2.2.cipx")
+dst = os.path.join(cipx_dir, "ClassIsland.SleepWatch_for_version_1.5.0.0-2.2.cipx")
 manifest_path = os.path.join(root, "manifest.preview.yml")
 
 if not os.path.exists(src):

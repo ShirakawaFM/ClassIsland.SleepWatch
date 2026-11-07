@@ -184,11 +184,21 @@
 
 ## 安装
 
-**前置条件：ClassIsland 2.1.0.1 或更高（当前正式版）。** 插件按 `apiVersion 2.1.0.1` / .NET 8 编译，和正式版宿主保持一致——TFM 和 apiVersion 只要有一项高于本体，加载器就会静默拒收。
+**前置条件：ClassIsland 2.1.0.1 或更高。** 从 [Releases](../../releases) 下载对应版本的包，先确认自己用的是哪一版：
 
-2.2 的预览版（`2.1.1.x` / `2.1.2.0`）没有做适配：官方对这些版本的说明是「仅适用于开发者」「不要在生产环境使用」，插件在那上面也许能加载，但课表同步这类跟着档案模型走的功能不保证。
+| 你的 ClassIsland | 下哪个包 |
+| --- | --- |
+| **2.1.0.1（正式版，绝大多数人）** | `ClassIsland.SleepWatch_for_version_<版本>.cipx` |
+| 2.2 预览版（`2.1.1.x` / `2.1.2.0`） | `ClassIsland.SleepWatch_for_version_<版本>-2.2.cipx` |
 
-从 [Releases](../../releases) 下载对应版本的 `ClassIsland.SleepWatch_for_version_<版本>.cipx`（约 51 MB，含姿态模型），任选一种装法：
+两个包内容一样，只是编译环境不同：
+
+- 正式版包：`apiVersion 2.1.0.1` / .NET 8 / Avalonia 11 / SkiaSharp 2.88
+- 2.2 包：`apiVersion 2.1.1.1` / .NET 10 / Avalonia 12 / SkiaSharp 3
+
+**必须分开的原因**：Avalonia 12 换了 `InputElement.LostFocus` 的委托类型，XAML 编译产物也和运行时大版本强绑定。装错的话，正式版是加载器静默拒收（TFM 高于宿主），预览版是打开设置页抛 `MissingMethodException`。
+
+包约 50 MB，姿态模型已在里面，装完不需要联网。任选一种装法：
 
 | 方式 | 步骤 | 适合 |
 | --- | --- | --- |
