@@ -469,7 +469,9 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
             {
                 _sourceBox.Text = device.Index.ToString();
                 Commit();
-                _cameraHint.Text = $"已选「{device.Name}」，视频源填成 {device.Index}。点【重启监测】生效。";
+                _cameraHint.Text = device.Usable
+                    ? $"已选「{device.Name}」，视频源填成 {device.Index}。点【重启监测】生效。"
+                    : $"「{device.Name}」现在打不开，但编号 {device.Index} 已经填进视频源了，点【重启监测】可以再试一次。";
             }
         };
 
@@ -769,22 +771,21 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         try
         {
             var source = (_sourceBox.Text ?? "0").Trim();
-            var devices = await Task.Run(() => CameraEnumerator.Scan(source));
+            var scan = await Task.Run(() => CameraEnumerator.Scan(source));
 
             _cameraCombo.Items.Clear();
 
-            foreach (var device in devices)
+            foreach (var device in scan.Devices)
             {
                 _cameraCombo.Items.Add(device);
             }
 
             var current = int.TryParse(source, out var idx) ? idx : -1;
-            var hit = devices.FirstOrDefault(d => d.Index == current);
+            var hit = scan.Devices.FirstOrDefault(d => d.Index == current);
 
             if (hit != null) _cameraCombo.SelectedItem = hit;
 
-            _cameraHint.Text = CameraEnumerator.Describe(devices) +
-                               "。挑一个会自动填进下面的视频源。若当前设备正被本插件使用，会显示“占用中”，属正常。";
+            _cameraHint.Text = scan.Summary;
         }
         catch (Exception ex)
         {

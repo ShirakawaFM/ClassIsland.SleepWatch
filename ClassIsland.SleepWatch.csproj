@@ -25,7 +25,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <AssemblyName>ClassIsland.SleepWatch</AssemblyName>
     <RootNamespace>ClassIsland.SleepWatch</RootNamespace>
-    <Version>1.5.0.0</Version>
+    <Version>1.5.1.0</Version>
     <AssemblyTitle>SleepWatch 课堂睡意监测</AssemblyTitle>
     <Product>SleepWatch</Product>
     <Company>ShirakawaFM</Company>

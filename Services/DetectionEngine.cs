@@ -93,6 +93,15 @@ public sealed class DetectionEngine : IDisposable
     /// <summary>1 = 正常，0.5 = 麦克风被占用，降一半帧率。</summary>
     private volatile float _fpsFactor = 1f;
 
+    /// <summary>连续读空帧的次数。摄像头刚启动时会空几帧，别急着判定断线。</summary>
+    private int _emptyReads;
+
+    /// <summary>下一次允许扫描其它摄像头编号的时间。</summary>
+    private DateTime _nextProbeAt = DateTime.MinValue;
+
+    /// <summary>上一次报过的打开失败信息，用来给日志去重。</summary>
+    private string? _lastOpenNote;
+
     private bool _cleanupDone;
     private DateTime _cleanupDay = DateTime.MinValue;
 
@@ -135,6 +144,9 @@ public sealed class DetectionEngine : IDisposable
         _chunks = new ChunkPlanner(2, 2, 0.15);
         _fpsFactor = 1f;
         _cleanupDone = false;
+        _emptyReads = 0;
+        _nextProbeAt = DateTime.MinValue;
+        _lastOpenNote = null;
 
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
@@ -197,6 +209,8 @@ public sealed class DetectionEngine : IDisposable
         AudioDeviceMonitor.BusyChanged -= OnMicBusy;
         AudioDeviceMonitor.Stop();
         _fpsFactor = 1f;
+        _emptyReads = 0;
+        _nextProbeAt = DateTime.MinValue;
 
         lock (_gate)
         {
@@ -275,12 +289,24 @@ public sealed class DetectionEngine : IDisposable
                 _frame ??= new Mat();
                 if (_capture == null || !_capture.Read(_frame) || _frame.Empty())
                 {
+                    // 刚连上的摄像头常要空几帧才出画面，这时候断开重连反而永远连不上
+                    _emptyReads++;
+                    if (_emptyReads < 10)
+                    {
+                        Status = "等待画面…";
+                        Thread.Sleep(60);
+                        continue;
+                    }
+
                     Status = "读取画面失败，重连中…";
+                    AppLog.Warn($"连续 {_emptyReads} 次读不到画面，断开重连");
+                    _emptyReads = 0;
                     ReleaseCapture();
                     Thread.Sleep(800);
                     continue;
                 }
 
+                _emptyReads = 0;
                 ProcessFrame(_frame, token);
             }
             catch (Exception ex)
@@ -312,40 +338,50 @@ public sealed class DetectionEngine : IDisposable
 
         ReleaseCapture();
 
-        var source = _settings.VideoSource?.Trim() ?? "0";
+        var source = _settings.VideoSource?.Trim();
+        if (string.IsNullOrWhiteSpace(source)) source = "0";
 
         try
         {
             if (int.TryParse(source, out var index))
             {
-                var cap = new VideoCapture();
-                if (!cap.Open(index, VideoCaptureAPIs.DSHOW))
+                var result = CameraOpener.OpenIndex(index);
+
+                if (result.Ok)
                 {
-                    cap.Open(index, VideoCaptureAPIs.MSMF);
+                    _capture = result.Capture;
+                    Status = "监测中";
+                    _lastOpenNote = null;
+                    AppLog.Info($"视频源已连接：摄像头 {index}（{result.Api}）");
+                    return true;
                 }
 
-                if (!cap.IsOpened())
+                // 配的编号打不开时，顺手看看别的编号：教室机器上摄像头序号
+                // 经常不是 0 —— 插了采集卡、装过虚拟摄像头软件都会把顺序顶走
+                if (TryFallbackSource(index, out var alt))
                 {
-                    cap.Open(index, VideoCaptureAPIs.ANY);
+                    Status = $"视频源 {index} 打不开，已自动改用摄像头 {alt}。想固定下来，把视频源改成 {alt}";
+                    _lastOpenNote = null;
+                    return true;
                 }
 
-                if (cap.IsOpened())
-                {
-                    cap.Set(VideoCaptureProperties.BufferSize, 1);
-                }
+                NoteOpenFailure(result.Reason == CameraFailReason.NativeMissing
+                    ? "原生库没加载起来，摄像头调不了。看日志里「原生库」那条"
+                    : $"打不开视频源（{index}）：{result.Message}");
 
-                _capture = cap;
+                return false;
             }
-            else
+
+            var url = CameraOpener.OpenUrl(source);
+            if (url.Ok)
             {
-                var cap = new VideoCapture(source, VideoCaptureAPIs.FFMPEG);
-                if (cap.IsOpened())
-                {
-                    cap.Set(VideoCaptureProperties.BufferSize, 1);
-                }
-
-                _capture = cap;
+                _capture = url.Capture;
+                Status = "监测中";
+                return true;
             }
+
+            NoteOpenFailure(url.Message);
+            return false;
         }
         catch (Exception ex)
         {
@@ -353,18 +389,47 @@ public sealed class DetectionEngine : IDisposable
             AppLog.Error("打开视频源失败", ex);
             return false;
         }
+    }
 
-        if (_capture == null || !_capture.IsOpened())
+    /// <summary>
+    /// 记一条打开失败。主循环每秒都会重试一次，同一条消息只写一遍日志，
+    /// 否则一天就能把按天轮转的日志刷到几十兆。
+    /// </summary>
+    private void NoteOpenFailure(string message)
+    {
+        Status = message;
+
+        if (_lastOpenNote == message) return;
+
+        _lastOpenNote = message;
+        AppLog.Warn(message);
+    }
+
+    /// <summary>
+    /// 配置的编号打不开时，扫一遍其它编号找个能用的。
+    /// 每 10 秒最多扫一次 —— 一次扫描要试开 6 个设备，每秒都扫会把主循环拖垮。
+    /// </summary>
+    private bool TryFallbackSource(int badIndex, out int found)
+    {
+        found = -1;
+
+        if (DateTime.Now < _nextProbeAt) return false;
+        _nextProbeAt = DateTime.Now.AddSeconds(10);
+
+        for (var i = 0; i < CameraOpener.MaxIndex; i++)
         {
-            _capture?.Dispose();
-            _capture = null;
-            Status = $"打不开视频源（{source}），请检查摄像头编号";
-            return false;
+            if (i == badIndex) continue;
+
+            var attempt = CameraOpener.OpenIndex(i);
+            if (!attempt.Ok) continue;
+
+            _capture = attempt.Capture;
+            AppLog.Warn($"视频源 {badIndex} 打不开，自动改用摄像头 {i}");
+            found = i;
+            return true;
         }
 
-        Status = "监测中";
-        AppLog.Info("视频源已连接：" + source);
-        return true;
+        return false;
     }
 
     private void ReleaseCapture()

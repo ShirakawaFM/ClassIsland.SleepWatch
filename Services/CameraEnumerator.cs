@@ -4,8 +4,6 @@ using System.Linq;
 
 using Microsoft.Win32;
 
-using OpenCvSharp;
-
 namespace ClassIsland.SleepWatch.Services;
 
 /// <summary>一个摄像头设备。</summary>
@@ -19,123 +17,162 @@ public sealed class CameraDevice
     /// <summary>现在被别的程序占着，打不开。</summary>
     public bool Occupied { get; init; }
 
+    /// <summary>试开成功，能出画面。</summary>
+    public bool Usable { get; init; } = true;
+
+    /// <summary>给下拉框看的补充说明，没有就不显示。</summary>
+    public string Note { get; init; } = "";
+
     public override string ToString()
-        => $"{Name}（{Index}）{(Occupied ? " · 占用中" : "")}";
+    {
+        // Name 里已经带「（当前）」的就别再把序号叠一遍
+        var head = Name.EndsWith("（当前）", StringComparison.Ordinal) ? Name : $"{Name}（{Index}）";
+        return string.IsNullOrEmpty(Note) ? head : $"{head} · {Note}";
+    }
+}
+
+/// <summary>一次扫描的结果。除了设备列表，还带一句给人看的结论。</summary>
+public sealed class CameraScanResult
+{
+    public List<CameraDevice> Devices { get; init; } = new();
+
+    /// <summary>直接显示在设置页上的一句话。</summary>
+    public string Summary { get; init; } = "";
+
+    /// <summary>原生库没加载起来 —— 这时候一个设备都测不出来，得单独提示。</summary>
+    public bool NativeMissing { get; init; }
 }
 
 /// <summary>
 /// 枚举本机摄像头。
 ///
 /// 没有可靠的"列出所有摄像头"的托管接口，所以用两步凑：先从注册表拿设备友好名，
-/// 再逐个序号试开一次 VideoCapture，能开的就是可用设备。试开会占几百毫秒到一秒，
-/// 所以必须在后台线程跑（设置页那边是 Task.Run 起来的）。
+/// 再逐个序号试开一次（<see cref="CameraOpener"/> 会顺便预热到出画面）。
+/// 试开会占几百毫秒到一秒多，所以必须在后台线程跑（设置页那边是 Task.Run 起来的）。
 ///
-/// 注意：正在被本插件使用的那个设备再试开会失败，这种情况不能直接判成"没有"，
-/// 要按"使用中"保留在列表里。
+/// 两条必须守住的规则：
+/// 1. **当前配置的那个设备试开失败也要留在列表里**。它很可能正被本插件自己占着，
+///    试开当然失败；如果因此把它丢掉，用户会看到"没找到可用摄像头"，
+///    哪怕摄像头好好的、画面也在正常跑。
+/// 2. 原生库没加载起来的时候，每个序号都会失败，而且原因一模一样。
+///    这种情况必须明说，不然用户只会以为没有摄像头。
 /// </summary>
 public static class CameraEnumerator
 {
-    /// <summary>最多试到几号。一般机器不会超过 4 个。</summary>
-    private const int MaxProbe = 6;
-
     /// <summary>USB 摄像头的设备类 GUID。</summary>
     private const string CameraClassKey =
         @"SYSTEM\CurrentControlSet\Control\Class\{ca3e7ab9-b4c3-4ae6-8251-579ef933890f}";
 
     /// <summary>
-    /// 扫一遍。<paramref name="currentSource"/> 是当前配置里的视频源，
-    /// 如果是纯数字就当作"正在使用"，即使试开失败也留在列表里。
+    /// 扫一遍。<paramref name="currentSource"/> 是当前配置里的视频源。
     /// </summary>
-    public static List<CameraDevice> Scan(string? currentSource)
+    public static CameraScanResult Scan(string? currentSource)
     {
         var names = ReadFriendlyNames();
         var current = int.TryParse(currentSource?.Trim(), out var idx) ? idx : -1;
 
         var list = new List<CameraDevice>();
+        var nativeMissing = false;
 
         NativeBootstrap.Ensure();
 
-        for (var i = 0; i < MaxProbe; i++)
+        for (var i = 0; i < CameraOpener.MaxIndex; i++)
         {
-            var opened = TryOpen(i, out var occupied);
+            var isCurrent = i == current;
+            var result = CameraOpener.OpenIndex(i);
 
-            if (!opened && !occupied) continue;
-
-            var name = i < names.Count && !string.IsNullOrWhiteSpace(names[i])
-                ? names[i]
-                : $"摄像头 {i}";
-
-            var inUse = i == current;
-
-            list.Add(new CameraDevice
+            if (result.Ok)
             {
-                Index = i,
-                Name = inUse ? name + "（当前）" : name,
-                Occupied = occupied
-            });
-        }
+                var cap = result.Capture!;
+                try
+                {
+                    cap.Release();
+                    cap.Dispose();
+                }
+                catch
+                {
+                    // 释放失败不影响结论
+                }
 
-        // 当前配置的网络流 / 或者编号超范围：至少让用户看到自己在用什么
-        if (current < 0 && !string.IsNullOrWhiteSpace(currentSource) && list.Count == 0)
-        {
-            list.Add(new CameraDevice
-            {
-                Index = -1,
-                Name = "当前：自定义地址 " + currentSource,
-                Occupied = false
-            });
-        }
+                list.Add(new CameraDevice
+                {
+                    Index = i,
+                    Name = DisplayName(names, i, isCurrent),
+                    Usable = true,
+                    Occupied = isCurrent,
+                    Note = isCurrent ? "使用中" : ""
+                });
 
-        return list;
-    }
-
-    private static bool TryOpen(int index, out bool occupied)
-    {
-        occupied = false;
-
-        try
-        {
-            using var capture = new VideoCapture();
-
-            if (capture.Open(index, VideoCaptureAPIs.DSHOW) && capture.IsOpened())
-            {
-                // 真的读一帧，有些"打开成功"其实拿不到画面
-                using var frame = new Mat();
-                return capture.Read(frame) && !frame.Empty();
+                continue;
             }
 
-            // 打不开有两种：没这个设备 / 被别的程序独占。用 ANY 再试一次区分。
-            using var fallback = new VideoCapture();
-
-            if (fallback.Open(index, VideoCaptureAPIs.ANY) && fallback.IsOpened())
+            if (result.Reason == CameraFailReason.NativeMissing)
             {
-                using var frame = new Mat();
-                return fallback.Read(frame) && !frame.Empty();
+                nativeMissing = true;
+                break; // 后面每个序号都是同一个错，别浪费时间
             }
 
-            // ANY 也失败：这个序号上大概率有设备，只是被占了
-            occupied = HasDeviceHint(index);
-            return false;
+            // 当前设备打不开不等于没有：占着它的很可能就是本插件自己。
+            // 从注册表条目数推"这个序号上有没有设备"并不可靠（列着不少没插的设备），
+            // 所以只说"打不开"，把两种可能都摆给用户。
+            if (isCurrent)
+            {
+                list.Add(new CameraDevice
+                {
+                    Index = i,
+                    Name = DisplayName(names, i, true),
+                    Usable = false,
+                    Occupied = true,
+                    Note = "打不开"
+                });
+            }
         }
-        catch
+
+        return new CameraScanResult
         {
-            occupied = false;
-            return false;
-        }
+            Devices = list,
+            NativeMissing = nativeMissing,
+            Summary = Summarize(list, nativeMissing, current)
+        };
     }
 
-    /// <summary>注册表里有没有第 index 个设备（只能粗略对应，用来给"占用中"做个判据）。</summary>
-    private static bool HasDeviceHint(int index)
+    private static string DisplayName(List<string> names, int index, bool current)
     {
-        try
+        var name = index < names.Count && !string.IsNullOrWhiteSpace(names[index])
+            ? names[index]
+            : $"摄像头 {index}";
+
+        return current ? name + "（当前）" : name;
+    }
+
+    private static string Summarize(List<CameraDevice> devices, bool nativeMissing, int currentIndex)
+    {
+        if (nativeMissing)
         {
-            var names = ReadFriendlyNames();
-            return index < names.Count;
+            return "OpenCvSharp 的原生库没加载起来，所以一个设备都测不出来。"
+                   + "这跟摄像头无关：先确认插件包完整（runtimes/win-x64/native 里应有 OpenCvSharpExtern.dll），"
+                   + "再看日志里的「原生库」条目。";
         }
-        catch
+
+        if (devices.Count == 0)
         {
-            return false;
+            return "没找到可用摄像头。确认摄像头已插好、驱动正常，并且没有被其它程序独占；"
+                   + "也可以直接在下面的视频源里填序号或 rtsp:// 地址。";
         }
+
+        var usable = devices.Count(d => d.Usable);
+        var current = devices.FirstOrDefault(d => d.Index == currentIndex);
+
+        var text = usable == devices.Count
+            ? $"找到 {devices.Count} 个设备"
+            : $"找到 {devices.Count} 个设备，其中 {devices.Count - usable} 个现在打不开";
+
+        if (current is { Usable: false })
+        {
+            text += "。当前配置的这个打不开 —— 序号填错、被别的程序占着、或者正被本插件自己用着，都有可能";
+        }
+
+        return text + "。挑一个会自动填进下面的视频源。";
     }
 
     /// <summary>读设备友好名。读不到就返回空表，列表会退化成「摄像头 N」。</summary>
@@ -162,16 +199,5 @@ public static class CameraEnumerator
         }
 
         return result;
-    }
-
-    /// <summary>给设置页显示用的一行摘要。</summary>
-    public static string Describe(List<CameraDevice> devices)
-    {
-        if (devices.Count == 0) return "没找到可用摄像头";
-
-        var occupied = devices.Count(d => d.Occupied);
-        return occupied > 0
-            ? $"找到 {devices.Count} 个设备，其中 {occupied} 个被占用"
-            : $"找到 {devices.Count} 个设备";
     }
 }
