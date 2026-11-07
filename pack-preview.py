@@ -3,6 +3,8 @@
 CreateCipx 只会压 bin 输出目录，manifest 只能用项目里那份（apiVersion 2.1.0.1）。
 预览版必须声明 apiVersion 2.1.1.1，否则正式版用户会误装 net10 的包然后加载失败。
 
+输出名标的是「适配哪个 ClassIsland 版本」，不是插件版本。
+
 用法：
     dotnet build -c Release -p:PreviewBuild=true -p:CreateCipx=true -p:PowershellBinaryName=powershell
     python pack-preview.py
@@ -16,7 +18,7 @@ import zipfile
 root = os.path.dirname(os.path.abspath(__file__))
 cipx_dir = os.path.join(root, "cipx")
 src = os.path.join(cipx_dir, "ClassIsland.SleepWatch.cipx")
-dst = os.path.join(cipx_dir, "ClassIsland.SleepWatch_for_version_1.5.0.0-2.2.cipx")
+dst = os.path.join(cipx_dir, "ClassIsland.SleepWatch_for_ClassIsland_2.1.1.1.cipx")
 manifest_path = os.path.join(root, "manifest.preview.yml")
 
 if not os.path.exists(src):

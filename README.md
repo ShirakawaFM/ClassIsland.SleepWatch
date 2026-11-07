@@ -188,10 +188,12 @@
 
 | 你的 ClassIsland | 下哪个包 |
 | --- | --- |
-| **2.1.0.1（正式版，绝大多数人）** | `ClassIsland.SleepWatch_for_version_<版本>.cipx` |
-| 2.2 预览版（`2.1.1.x` / `2.1.2.0`） | `ClassIsland.SleepWatch_for_version_<版本>-2.2.cipx` |
+| **2.1.0.1（正式版，绝大多数人）** | `ClassIsland.SleepWatch_for_ClassIsland_2.1.0.1.cipx` |
+| 2.2 预览版（`2.1.1.x` / `2.1.2.0`） | `ClassIsland.SleepWatch_for_ClassIsland_2.1.1.1.cipx` |
 
-两个包内容一样，只是编译环境不同：
+包名里的数字是**它适配的 ClassIsland 版本**，不是插件版本 —— 插件版本看 Release 的标签号（比如 `1.5.0.0`）。这样文件名直接回答「我这版能不能装」，不用先去翻更新日志。
+
+两个包代码一样，只是编译环境不同：
 
 - 正式版包：`apiVersion 2.1.0.1` / .NET 8 / Avalonia 11 / SkiaSharp 2.88
 - 2.2 包：`apiVersion 2.1.1.1` / .NET 10 / Avalonia 12 / SkiaSharp 3
@@ -601,7 +603,7 @@ cd ClassIsland.SleepWatch
 dotnet build -c Release -p:CreateCipx=true -p:PowershellBinaryName=powershell
 ```
 
-产物在 `cipx/ClassIsland.SleepWatch.cipx`。上传到 Release 时改名为 `ClassIsland.SleepWatch_for_version_<版本>.cipx` —— 每个版本一个包、名字里带版本号，用户从下载列表一眼能看出是哪个版本。
+产物在 `cipx/ClassIsland.SleepWatch.cipx`。上传到 Release 时改名为 `ClassIsland.SleepWatch_for_ClassIsland_<宿主版本>.cipx` —— 名字里带的是**适配的 ClassIsland 版本**（正式版 `2.1.0.1`、2.2 预览版 `2.1.1.1`），插件自己的版本由 Release 的 tag 表达。宿主版本没变，包名就不用跟着每次发版改。
 
 > GitHub 会把工件名里的空格和括号替换成 `.`，所以命名用下划线分段，不写成 `for (version x.x.x.)` 的字面形式。
 
@@ -674,6 +676,7 @@ ClassIsland.SleepWatch/
 
 **1.5.0「昂首可量」**
 - 适配 ClassIsland 正式版 2.1.0.1：目标框架 net10 → net8，SDK 2.1.1.1 → 2.1.0.1，`apiVersion` 同步降到 2.1.0.1。此前按 2.2 预览版编译，正式版用户装不上
+- 发布包改按**适配的 ClassIsland 版本**命名：`ClassIsland.SleepWatch_for_ClassIsland_<宿主版本>.cipx`，插件自己的版本交给 Release 标签。1.1 / 1.3.0 / 1.3.1 / 1.4 的历史包一并改名——那几个都只适配 `2.1.1.1`，所以文件名相同
 - SkiaSharp 3.119.4 → 2.88.9，与宿主 Avalonia 11.3.17 依赖的版本对齐，避免同进程两套 Skia
 - 判定重做：从「没看到睁眼就算困」改成「连续静置时长」主导，姿势与闭眼降级为加权项；动一下就清零
 - 新增两层门槛：静置 → 疑似 → 确认沉睡。只有确认才入库、才抓快照，瞬时低头和短暂抖动直接丢弃
