@@ -188,7 +188,7 @@
 
 2.2 的预览版（`2.1.1.x` / `2.1.2.0`）没有做适配：官方对这些版本的说明是「仅适用于开发者」「不要在生产环境使用」，插件在那上面也许能加载，但课表同步这类跟着档案模型走的功能不保证。
 
-从 [Releases](../../releases) 下载 `ClassIsland.SleepWatch.cipx`（约 51 MB，含姿态模型），任选一种装法：
+从 [Releases](../../releases) 下载对应版本的 `ClassIsland.SleepWatch_for_version_<版本>.cipx`（约 51 MB，含姿态模型），任选一种装法：
 
 | 方式 | 步骤 | 适合 |
 | --- | --- | --- |
@@ -591,7 +591,11 @@ cd ClassIsland.SleepWatch
 dotnet build -c Release -p:CreateCipx=true -p:PowershellBinaryName=powershell
 ```
 
-产物在 `cipx/ClassIsland.SleepWatch.cipx`。Windows 上也可以直接双击项目里的 `pack.cmd`。
+产物在 `cipx/ClassIsland.SleepWatch.cipx`。上传到 Release 时改名为 `ClassIsland.SleepWatch_for_version_<版本>.cipx` —— 每个版本一个包、名字里带版本号，用户从下载列表一眼能看出是哪个版本。
+
+> GitHub 会把工件名里的空格和括号替换成 `.`，所以命名用下划线分段，不写成 `for (version x.x.x.)` 的字面形式。
+
+Windows 上也可以直接双击项目里的 `pack.cmd`。
 
 > `PowershellBinaryName` 必须显式传：PluginSdk 的 targets 文件里写死了 `pwsh`（PowerShell 7），只有 Windows PowerShell 5.1 的机器会在这里报 9009。
 

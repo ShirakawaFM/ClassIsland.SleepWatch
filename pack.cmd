@@ -25,5 +25,6 @@ if errorlevel 1 (
 
 echo.
 echo 完成。插件包在 cipx\ClassIsland.SleepWatch.cipx
+echo 上传到 Release 时改名为 ClassIsland.SleepWatch_for_version_^(版本^).cipx
 echo 校验和在同目录 checksums.md
 pause

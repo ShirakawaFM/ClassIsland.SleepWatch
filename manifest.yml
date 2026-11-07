@@ -13,5 +13,7 @@ supportedOSPlatforms:
 repoOwner: ShirakawaFM
 repoName: ClassIsland.SleepWatch
 assetsRoot: main/
-artifactName: ClassIsland.SleepWatch.cipx
+# 不写 artifactName：每个版本的包名都带版本号（ClassIsland.SleepWatch_for_version_<版本>.cipx），
+# 固定写一个名字就只能匹配到某一个版本。留空时索引生成器会取该 Release 里的第一个 .cipx，
+# 每个 Release 只放一个包即可。
 tagPattern: 1.*.*.*
