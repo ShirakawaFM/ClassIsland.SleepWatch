@@ -71,7 +71,7 @@
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="视频源" Width="110" VerticalAlignment="Center" />
                 <TextBox x:Name="SourceBox" Width="300"
-                         PlaceholderText="0 = 本机摄像头；也可填 rtsp:// 或 http:// 地址" />
+                         Watermark="0 = 本机摄像头；也可填 rtsp:// 或 http:// 地址" />
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" Spacing="12">
@@ -204,7 +204,7 @@
             <CheckBox x:Name="SnapshotBox" Content="保存证据快照（默认关；开了才会往本机硬盘写图）" />
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="存放目录" Width="110" VerticalAlignment="Center" />
-                <TextBox x:Name="SnapshotFolderBox" Width="330" PlaceholderText="留空 = 配置目录下的 snapshots" />
+                <TextBox x:Name="SnapshotFolderBox" Width="330" Watermark="留空 = 配置目录下的 snapshots" />
                 <Button x:Name="SnapshotPickButton" Content="选择…" />
                 <Button x:Name="SnapshotOpenButton" Content="打开" />
             </StackPanel>

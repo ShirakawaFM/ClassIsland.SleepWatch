@@ -6,11 +6,13 @@
 
 一个纯本机、不认人、不联网的 ClassIsland 插件。
 
+**1.5.0「昂首可量」** —— 判的是「连续多久没动」，不是姿势。
+
 [简体中文](README.md)
 
 [![Version](https://img.shields.io/badge/version-1.5.0-2BE8C4?style=flat-square)](../../releases)
-[![ClassIsland](https://img.shields.io/badge/ClassIsland-2.1.1.1%2B-3BE8C4?style=flat-square)](https://classisland.tech)
-[![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com)
+[![ClassIsland](https://img.shields.io/badge/ClassIsland-2.1.0.1%2B-3BE8C4?style=flat-square)](https://classisland.tech)
+[![.NET](https://img.shields.io/badge/.NET-8-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com)
 [![Platform](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D4?style=flat-square&logo=windows&logoColor=white)]()
 [![Runtime](https://img.shields.io/badge/CPU%20only-no%20GPU-1E6E63?style=flat-square)]()
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](LICENSE)
@@ -182,9 +184,11 @@
 
 ## 安装
 
-**前置条件：ClassIsland 2.1.1.1 或更高。** 插件按 `apiVersion 2.1.1.1` / .NET 10 编译，1.x 的加载器会直接拒收，而且不给任何提示。
+**前置条件：ClassIsland 2.1.0.1 或更高（当前正式版）。** 插件按 `apiVersion 2.1.0.1` / .NET 8 编译，和正式版宿主保持一致——TFM 和 apiVersion 只要有一项高于本体，加载器就会静默拒收。
 
-从 [Releases](../../releases) 下载 `ClassIsland.SleepWatch.cipx`（约 49 MB，含姿态模型），任选一种装法：
+2.2 的预览版（`2.1.1.x` / `2.1.2.0`）没有做适配：官方对这些版本的说明是「仅适用于开发者」「不要在生产环境使用」，插件在那上面也许能加载，但课表同步这类跟着档案模型走的功能不保证。
+
+从 [Releases](../../releases) 下载 `ClassIsland.SleepWatch.cipx`（约 51 MB，含姿态模型），任选一种装法：
 
 | 方式 | 步骤 | 适合 |
 | --- | --- | --- |
@@ -554,7 +558,7 @@ NotificationProviderBase.ShowNotification(new NotificationRequest {
 ## 常见问题
 
 **装了但插件列表里没有**
-ClassIsland 版本低于 2.1.1.1。1.x 加载器会直接拒收 `apiVersion 2.1.1.1` 的包，而且不给任何提示。
+ClassIsland 版本低于 2.1.0.1，或者装的是 1.x。加载器对「插件 apiVersion 高于本体」和「目标框架高于宿主」都是静默拒收，不给提示。1.4 时代的插件按 .NET 10 编译，在正式版上就是这个表现，1.5.0 已经改回 .NET 8。
 
 **状态显示「缺少姿态模型」**
 插件包解压不完整。检查 `models/yolov8n-pose.onnx`（约 13 MB）在不在插件目录里，状态栏会把实际找过的路径一条条列出来。
@@ -654,7 +658,9 @@ ClassIsland.SleepWatch/
 
 ## 版本记录
 
-**1.5.0**
+**1.5.0「昂首可量」**
+- 适配 ClassIsland 正式版 2.1.0.1：目标框架 net10 → net8，SDK 2.1.1.1 → 2.1.0.1，`apiVersion` 同步降到 2.1.0.1。此前按 2.2 预览版编译，正式版用户装不上
+- SkiaSharp 3.119.4 → 2.88.9，与宿主 Avalonia 11.3.17 依赖的版本对齐，避免同进程两套 Skia
 - 判定重做：从「没看到睁眼就算困」改成「连续静置时长」主导，姿势与闭眼降级为加权项；动一下就清零
 - 新增两层门槛：静置 → 疑似 → 确认沉睡。只有确认才入库、才抓快照，瞬时低头和短暂抖动直接丢弃
 - 多人跟踪重写：IoU + 中心 + 尺寸 + 运动预测的加权关联（阈值 0.28），遮挡续踪 12 秒、漏检缓存 6 秒，趴桌埋脸、侧脸、侧身不再跳 ID

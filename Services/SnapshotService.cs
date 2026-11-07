@@ -169,11 +169,12 @@ public static class SnapshotService
         var canvas = surface.Canvas;
         canvas.Clear(new SKColor(18, 18, 20));
 
-        // 先把裁剪图铺上去
-        using (var paint = new SKPaint())
+        // 先把裁剪图铺上去。
+        // 这里用 2.88 的 FilterQuality 而不是 3.x 的 SKSamplingOptions：
+        // ClassIsland 2.1 正式版宿主带的是 SkiaSharp 2.88.9，插件跟它保持同一版才不会撞类型。
+        using (var paint = new SKPaint { FilterQuality = SKFilterQuality.Medium, IsAntialias = true })
         {
-            var sampling = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
-            canvas.DrawImage(src, new SKRect(0, headerHeight, width, headerHeight + height), sampling, paint);
+            canvas.DrawImage(src, new SKRect(0, headerHeight, width, headerHeight + height), paint);
         }
 
         DrawHeader(canvas, width, headerHeight, lesson, trackId, start, end, confidence);

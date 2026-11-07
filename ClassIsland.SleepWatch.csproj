@@ -1,11 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- 必须钉在正式版的框架上，别跟着预览版跑：
+         ClassIsland 2.1.0.1（当前 Latest）是 net8.0 宿主，2.2 预览版（2.1.1.x / 2.1.2.0）才升到 net10。
+         插件 TFM 高于宿主就加载不起来，这是硬约束，不是配置问题。 -->
+    <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <UseWPF>true</UseWPF>
     <EnableDynamicLoading>True</EnableDynamicLoading>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <PlatformTarget>x64</PlatformTarget>
@@ -29,14 +31,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ClassIsland.PluginSdk" Version="2.1.1.1">
+    <!-- 对应 ClassIsland 正式版 2.1.0.1。apiVersion 也要跟着写 2.1.0.1：
+         加载器只认「插件 apiVersion ≤ 本体版本」，写高了正式版会直接拒收。 -->
+    <PackageReference Include="ClassIsland.PluginSdk" Version="2.1.0.1">
       <ExcludeAssets>runtime; native</ExcludeAssets>
     </PackageReference>
     <PackageReference Include="OpenCvSharp4" Version="4.9.0.20240103" />
     <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.9.0.20240103" />
     <!-- 快照要往图上写中文，OpenCV 自带的 Hershey 字体只有 ASCII。
-         SkiaSharp 本来就是 Avalonia 的传递依赖，这里只是显式引用同一个版本，不新增原生库。 -->
-    <PackageReference Include="SkiaSharp" Version="3.119.4" />
+         SkiaSharp 必须和宿主 Avalonia 11.3.17 用的版本一致（2.88.9），
+         写成 3.x 会出现两套 SkiaSharp 同进程共存，运行时类型对不上。 -->
+    <PackageReference Include="SkiaSharp" Version="2.88.9" />
   </ItemGroup>
 
   <ItemGroup>
@@ -58,7 +63,7 @@
 
   <!-- 打包前剔除用不上的原生库：
        本项目只编译 x64，win-x86 / win-arm64 / osx / linux 那几套全是白撑包体。
-       SkiaSharp 3.x 会带上 arm64 和 macOS 的原生库（合起来一百多兆），必须一起清掉。 -->
+       SkiaSharp 的 native assets 会带上 arm64、macOS、Linux 几套原生库，必须一起清掉。 -->
   <Target Name="PruneX86Runtime" BeforeTargets="CreateCipx" Condition="'$(CreateCipx)' == 'true'">
     <ItemGroup>
       <PruneRuntimeDir Include="$(OutputPath)runtimes\win-x86" />

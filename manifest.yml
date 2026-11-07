@@ -5,7 +5,7 @@ entranceAssembly: "ClassIsland.SleepWatch.dll"
 url: https://github.com/ShirakawaFM/ClassIsland.SleepWatch
 author: ShirakawaFM / 白川方明
 version: 1.5.0.0
-apiVersion: 2.1.1.1
+apiVersion: 2.1.0.1
 supportedOSPlatforms:
   - Windows
 

@@ -686,7 +686,10 @@ public sealed class DetectionEngine : IDisposable
 
     private static void DrawTag(SKCanvas canvas, SKFont font, SKRect box, string text, SKColor color)
     {
-        var width = font.MeasureText(text, out var bounds);
+        // 2.88 的 SKFont 只给了 Span 版的 MeasureText，量字符串得借 SKPaint
+        using var measure = new SKPaint { Typeface = font.Typeface, TextSize = font.Size };
+        var bounds = new SKRect();
+        var width = measure.MeasureText(text, ref bounds);
 
         var x = box.Left;
         var y = box.Top - 4 >= bounds.Height ? box.Top - 4 : box.Top + bounds.Height + 4;
