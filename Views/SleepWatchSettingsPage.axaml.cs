@@ -601,12 +601,22 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
 
         foreach (var name in names)
         {
-            _subjectPanel.Children.Add(new CheckBox
+            var box = new CheckBox
             {
                 Content = name,
                 IsChecked = (settings.EnabledSubjects ?? new List<string>()).Contains(name),
                 Margin = new Thickness(0, 0, 14, 4)
-            });
+            };
+
+            // 勾一下立刻落盘：科目列表是动态生成的，走不到通用保存路径
+            box.Click += (_, _) =>
+            {
+                if (_loading) return;
+                Commit(announce: false);
+                _statusText.Text = "科目已保存，下一节课按新的来。";
+            };
+
+            _subjectPanel.Children.Add(box);
         }
     }
 
