@@ -10,7 +10,7 @@
 
 [简体中文](README.md)
 
-[![Version](https://img.shields.io/badge/version-1.5.0-2BE8C4?style=flat-square)](../../releases)
+[![Version](https://img.shields.io/badge/version-1.5.1-2BE8C4?style=flat-square)](../../releases)
 [![ClassIsland](https://img.shields.io/badge/ClassIsland-2.1.0.1%2B-3BE8C4?style=flat-square)](https://classisland.tech)
 [![.NET](https://img.shields.io/badge/.NET-8-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com)
 [![Platform](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D4?style=flat-square&logo=windows&logoColor=white)]()
@@ -191,7 +191,7 @@
 | **2.1.0.1（正式版，绝大多数人）** | `ClassIsland.SleepWatch_for_ClassIsland_2.1.0.1.cipx` |
 | 2.2 预览版（`2.1.1.x` / `2.1.2.0`） | `ClassIsland.SleepWatch_for_ClassIsland_2.1.1.1.cipx` |
 
-包名里的数字是**它适配的 ClassIsland 版本**，不是插件版本 —— 插件版本看 Release 的标签号（比如 `1.5.0.0`）。这样文件名直接回答「我这版能不能装」，不用先去翻更新日志。
+包名里的数字是**它适配的 ClassIsland 版本**，不是插件版本 —— 插件版本看 Release 的标签号（比如 `1.5.1.0`）。这样文件名直接回答「我这版能不能装」，不用先去翻更新日志。
 
 两个包代码一样，只是编译环境不同：
 
