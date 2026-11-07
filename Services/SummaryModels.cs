@@ -13,6 +13,14 @@ public sealed class StatCard
     public bool Enabled { get; init; } = true;
 }
 
+/// <summary>课后总结里的一张快照。</summary>
+public sealed class SnapshotItem
+{
+    public string Path { get; init; } = "";
+    public string Caption { get; init; } = "";
+    public string Time { get; init; } = "";
+}
+
 /// <summary>这一页是什么。</summary>
 public enum PageKind
 {
@@ -51,6 +59,9 @@ public sealed class SummaryPage
     public List<CurvePoint> Curve { get; init; } = new();
     public List<FactItem> Facts { get; init; } = new();
 
+    /// <summary>确认沉睡的证据快照。只有第一页（上完的那节课）会有。</summary>
+    public List<SnapshotItem> Snapshots { get; init; } = new();
+
     /// <summary>曲线横轴两点的时间文本。</summary>
     public string CurveStart { get; init; } = "";
     public string CurveEnd { get; init; } = "";
@@ -63,18 +74,24 @@ public static class SummaryBuilder
     /// <summary>曲线最多画这么多根柱子，再多屏幕上也看不清。</summary>
     private const int MaxBars = 46;
 
+    /// <summary>
+    /// 造一页。
+    /// <paramref name="focus"/> 不为空时，这一页固定讲这一节课——下课刚结算完走的就是这条路，
+    /// 保证弹出来的报告就是刚上完的那节，不会因为"今天另一节睡的人更多"而显示错课。
+    /// </summary>
     public static SummaryPage Build(
         DayRecord day,
         IReadOnlyList<DayRecord> history,
         SummarySettings cfg,
         int classSize,
         double thresholdSeconds,
-        bool isLead = false)
+        bool isLead = false,
+        LessonRecord? focus = null)
     {
         var isToday = day.Date == DateTime.Today;
         var dayLabel = DayLabel(day.Date, isToday);
 
-        var lesson = PickLesson(day);
+        var lesson = focus ?? PickLesson(day);
 
         if (lesson == null)
         {
@@ -142,11 +159,26 @@ public static class SummaryBuilder
             });
         }
 
+        if (cfg.ShowHeadUpRate && lesson.AverageHeadUpRate >= 0)
+        {
+            stats.Add(new StatCard
+            {
+                Label = "平均抬头率",
+                Value = $"{lesson.AverageHeadUpRate:0}%",
+                Hint = lesson.MinHeadUpRate >= 0 ? $"最低 {lesson.MinHeadUpRate:0}%" : "按 20 秒采样",
+                Enabled = true
+            });
+        }
+
         var facts = cfg.ShowFacts
             ? FunFactWriter.Build(lesson, day, history, classSize, thresholdSeconds)
             : new List<FactItem>();
 
         var curve = Downsample(lesson.Curve);
+
+        var snapshots = cfg.ShowSnapshots
+            ? BuildSnapshots(lesson)
+            : new List<SnapshotItem>();
 
         return new SummaryPage
         {
@@ -166,12 +198,33 @@ public static class SummaryBuilder
             Stats = stats,
             Curve = curve,
             Facts = facts,
+            Snapshots = snapshots,
             CurveStart = lesson.Start.ToString("HH:mm"),
             CurveEnd = lesson.End.ToString("HH:mm"),
             CurveTitle = "人数变化",
             PeakBadge = $"峰值 {lesson.PeakSleeping} 人",
             Peak = lesson.PeakSleeping
         };
+    }
+
+    /// <summary>把一节课里带快照的睡眠段折成缩略图列表。</summary>
+    private static List<SnapshotItem> BuildSnapshots(LessonRecord lesson)
+    {
+        var list = new List<SnapshotItem>();
+
+        foreach (var ep in lesson.Snapshots.OrderBy(e => e.Start))
+        {
+            var end = ep.End?.ToString("HH:mm") ?? "未醒";
+
+            list.Add(new SnapshotItem
+            {
+                Path = SnapshotPaths.Absolute(ep.SnapshotPath),
+                Time = $"{ep.Start:HH:mm}–{end}",
+                Caption = $"#{ep.TrackId} · {FunFactWriter.Duration(ep.Seconds)} · 置信 {ep.Confidence:0.00}"
+            });
+        }
+
+        return list;
     }
 
     /// <summary>
@@ -228,6 +281,22 @@ public static class SummaryBuilder
             }
         };
 
+        if (cfg.ShowHeadUpRate)
+        {
+            var rates = withData.Where(d => d.AverageHeadUpRate >= 0).ToList();
+
+            if (rates.Count > 0)
+            {
+                stats.Add(new StatCard
+                {
+                    Label = "日均抬头率",
+                    Value = $"{rates.Average(d => d.AverageHeadUpRate):0}%",
+                    Hint = $"覆盖 {rates.Count} 天",
+                    Enabled = true
+                });
+            }
+        }
+
         // 末页也给一根柱子一根柱子的动画：横轴换成"每天"，纵轴是那天一共几个人睡过
         var ordered = days.OrderBy(d => d.Date).ToList();
         var series = ordered
@@ -235,7 +304,8 @@ public static class SummaryBuilder
             {
                 OffsetSeconds = i * 86400,
                 Sleeping = d.TotalSleepers,
-                Present = classSize
+                Present = classSize,
+                HeadUpRate = d.AverageHeadUpRate > 0 ? d.AverageHeadUpRate : 0
             })
             .ToList();
 
@@ -301,7 +371,11 @@ public static class SummaryBuilder
         };
     }
 
-    /// <summary>一天里挑一节最有话说的：睡的人最多那节，一样多就取靠后的。</summary>
+    /// <summary>
+    /// 一天里挑一节最有话说的：睡的人最多那节，一样多就取靠后的。
+    /// 注意：只有"翻某一天"时才会用到它；下课刚结算完的那节是显式传进来的，
+    /// 不会因为同一天别的课睡得更欢而被替换掉。
+    /// </summary>
     private static LessonRecord? PickLesson(DayRecord day)
     {
         if (day.Lessons.Count == 0) return null;
@@ -312,13 +386,23 @@ public static class SummaryBuilder
             .FirstOrDefault();
     }
 
-    private static List<StatCard> EmptyStats(SummarySettings cfg) => new()
+    private static List<StatCard> EmptyStats(SummarySettings cfg)
     {
-        new() { Label = "睡觉总人数", Value = "—", Hint = "", Enabled = cfg.ShowTotalSleepers },
-        new() { Label = "已睡醒", Value = "—", Hint = "", Enabled = cfg.ShowAwakened },
-        new() { Label = "同一人入睡次数", Value = "—", Hint = "", Enabled = cfg.ShowRepeat },
-        new() { Label = "最长单次睡眠", Value = "—", Hint = "", Enabled = cfg.ShowLongest }
-    };
+        var list = new List<StatCard>
+        {
+            new() { Label = "睡觉总人数", Value = "—", Hint = "", Enabled = cfg.ShowTotalSleepers },
+            new() { Label = "已睡醒", Value = "—", Hint = "", Enabled = cfg.ShowAwakened },
+            new() { Label = "同一人入睡次数", Value = "—", Hint = "", Enabled = cfg.ShowRepeat },
+            new() { Label = "最长单次睡眠", Value = "—", Hint = "", Enabled = cfg.ShowLongest }
+        };
+
+        if (cfg.ShowHeadUpRate)
+        {
+            list.Add(new StatCard { Label = "平均抬头率", Value = "—", Hint = "", Enabled = true });
+        }
+
+        return list;
+    }
 
     /// <summary>把几百个采样点压到几十根柱子，取每段里的最大值，峰值不会被抹平。</summary>
     private static List<CurvePoint> Downsample(List<CurvePoint> source)
@@ -340,7 +424,9 @@ public static class SummaryBuilder
             {
                 OffsetSeconds = chunk[0].OffsetSeconds,
                 Sleeping = chunk.Max(p => p.Sleeping),
-                Present = chunk.Max(p => p.Present)
+                Present = chunk.Max(p => p.Present),
+                Doubtful = chunk.Max(p => p.Doubtful),
+                HeadUpRate = chunk.Average(p => p.HeadUpRate)
             });
         }
 
@@ -399,6 +485,7 @@ public static class SampleData
 
                 var lesson = new LessonRecord
                 {
+                    Id = $"sample-{date:yyyyMMdd}-{i + 1}",
                     Start = start,
                     End = start.AddMinutes(along),
                     Index = i + 1,
@@ -414,11 +501,13 @@ public static class SampleData
 
                 for (var t = 0; t <= along; t++)
                 {
+                    var present = 44;
                     lesson.Curve.Add(new CurvePoint
                     {
                         OffsetSeconds = t * 60,
                         Sleeping = sleeping,
-                        Present = 44
+                        Present = present,
+                        HeadUpRate = Math.Round((present - sleeping) * 100.0 / present, 1)
                     });
 
                     if (random.NextDouble() < 0.10) sleeping = Math.Min(baseCount, sleeping + 1);
@@ -437,6 +526,9 @@ public static class SampleData
                     {
                         TrackId = seat.Id,
                         Start = start.AddMinutes(offsetMin),
+                        LessonId = lesson.Id,
+                        IsConfirmed = true,
+                        Confidence = Math.Round(0.62 + random.NextDouble() * 0.3, 2),
                         CenterX = seat.X
                     };
 

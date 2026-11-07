@@ -75,30 +75,17 @@ public partial class SleepMonitorComponent : ComponentBase<SleepMonitorSettings>
 
         var engine = _engine;
 
-        LessonBridge.Subscribe(
-            "component",
-            () =>
-            {
-                var cfg = SettingsStore.Load();
-                if (cfg.AutoStartOnClass && !engine.IsRunning) engine.Start(cfg);
-            },
-            () =>
-            {
-                if (SettingsStore.Load().AutoStopOnBreak) engine.Stop();
-            },
-            () => engine.Stop());
+        // 自动启停统一走 DetectionLifecycle：跟设置页共用一份逻辑，
+        // 课程勾选、下课停检、资源释放都在那边判，这里不再重复写一遍
+        DetectionLifecycle.Attach(engine, "component");
 
-        var current = SettingsStore.Load();
-        if (current.AutoStartOnClass && !engine.IsRunning)
+        try
         {
-            try
-            {
-                engine.Start(current);
-            }
-            catch
-            {
-                // 摄像头打不开的话界面会显示具体状态
-            }
+            DetectionLifecycle.TryStart(engine);
+        }
+        catch
+        {
+            // 摄像头打不开的话界面会显示具体状态
         }
 
         _bound = true;
@@ -165,18 +152,29 @@ public partial class SleepMonitorComponent : ComponentBase<SleepMonitorSettings>
         }
         else if (compact)
         {
+            // 紧凑模式只给确认过的数字，疑似的不算，免得一会儿跳大一会儿跳小
             _mainText.Text = $"睡 {snapshot.Sleeping}";
         }
         else
         {
             _mainText.Text = snapshot.Sleeping > 0
-                ? $"疑似睡着 {snapshot.Sleeping} 人"
+                ? $"沉睡 {snapshot.Sleeping} 人"
                 : "全班清醒";
         }
 
-        _subText.Text = showDetail && !compact
-            ? $"在座 {snapshot.Present}/{snapshot.ClassSize}"
-            : "";
+        // 详情行：在座人数 + 疑似人数 + 抬头率。疑似单独标出来，
+        // 因为"疑似"还没过准入时长，随时可能醒，不能跟确认的混在一起说
+        var parts = new System.Collections.Generic.List<string>();
+
+        if (!compact)
+        {
+            parts.Add($"在座 {snapshot.Present}/{snapshot.ClassSize}");
+            if (snapshot.Doubtful > 0) parts.Add($"疑似 {snapshot.Doubtful}");
+            if (snapshot.HeadUpRate > 0) parts.Add($"抬头率 {snapshot.HeadUpRate * 100:0}%");
+            if (snapshot.Throttled) parts.Add("麦克风占用·降频");
+        }
+
+        _subText.Text = showDetail ? string.Join(" · ", parts) : "";
     }
 
     /// <summary>静默模式：把实时数字藏起来，数据照常记。</summary>

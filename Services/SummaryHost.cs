@@ -10,7 +10,7 @@ namespace ClassIsland.SleepWatch.Services;
 /// <summary>
 /// 课后总结的调度器。
 ///
-/// 挂三件事：上课时给账本开一页、下课把这一页结掉并且（按配置）弹总结、
+/// 挂三件事：上课时给账本开一页（带上课程 ID）、下课把这一页结掉并且（按配置）弹总结、
 /// 隔几分钟把还没落盘的记录写一次硬盘。
 ///
 /// 上下课的时刻不在这里判断 —— 那是 <see cref="LessonClock"/> 的活，
@@ -50,11 +50,13 @@ public static class SummaryHost
                 TimetableSync.Now(),
                 SettingsStore.Load().ClassSize,
                 context?.Index ?? 0,
-                context?.Subject ?? "");
+                context?.Subject ?? "",
+                context?.FromTimetable != true);
         }
-        catch
+        catch (Exception ex)
         {
             // 记账失败不能影响上课
+            AppLog.Error("开课记账失败", ex);
         }
     }
 
@@ -82,11 +84,13 @@ public static class SummaryHost
             SchedulePopup(
                 lesson.Sleepers > 0 ? $"这节课 {lesson.Sleepers} 个人睡过" : "这节课一个人都没睡",
                 $"{lesson.Title} · 最长一觉 {longest}",
-                cfg.PopupDelaySeconds);
+                cfg.PopupDelaySeconds,
+                lesson);
         }
-        catch
+        catch (Exception ex)
         {
             // 弹窗失败不能影响下课
+            AppLog.Error("课后总结调度失败", ex);
         }
     }
 
@@ -94,25 +98,25 @@ public static class SummaryHost
     /// 按配置把弹窗往后推。0 秒直接弹，跟以前一致；设了延迟就等够时间再走同一条流程。
     /// 连着两节课只保留最后排的那一次，不会攒出两个窗。
     /// </summary>
-    private static void SchedulePopup(string title, string detail, int delaySeconds)
+    private static void SchedulePopup(string title, string detail, int delaySeconds, LessonRecord lesson)
     {
         _popupTimer?.Dispose();
         _popupTimer = null;
 
         if (delaySeconds <= 0)
         {
-            Popup(title, detail);
+            Popup(title, detail, lesson);
             return;
         }
 
         _popupTimer = DispatcherTimer.RunOnce(() =>
         {
             _popupTimer = null;
-            Popup(title, detail);
+            Popup(title, detail, lesson);
         }, TimeSpan.FromSeconds(Math.Clamp(delaySeconds, 1, 120)));
     }
 
-    private static void Popup(string title, string detail)
+    private static void Popup(string title, string detail, LessonRecord lesson)
     {
         try
         {
@@ -125,17 +129,18 @@ public static class SummaryHost
                 try
                 {
                     // 延迟期间可能在设置页里改过配色和显示项，弹之前现读一次
-                    SummaryWindow.Show(SummarySettingsStore.Load(), sample: false);
+                    SummaryWindow.Show(SummarySettingsStore.Load(), sample: false, focus: lesson);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // 弹窗失败不影响下课
+                    AppLog.Error("总结窗口打开失败", ex);
                 }
             }, TimeSpan.FromMilliseconds(1100));
         }
-        catch
+        catch (Exception ex)
         {
             // 弹窗失败不能影响下课
+            AppLog.Error("强提醒失败", ex);
         }
     }
 

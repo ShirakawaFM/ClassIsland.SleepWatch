@@ -7,7 +7,7 @@
         <StackPanel Margin="24" Spacing="18" MaxWidth="820" HorizontalAlignment="Left">
 
             <TextBlock Text="SleepWatch 睡意监测" FontSize="20" FontWeight="SemiBold" />
-            <TextBlock Text="原理：持续检测到“睁眼”就算清醒；连续设定时长没抓到睁眼、或头一直低着，就算疑似睡着。不需要标定，装上就能跑。纯娱乐用途，数字别当真。"
+            <TextBlock Text="原理：按“连续多久没有有效动作”判断。动一下（抬头、转身、举手、睁眼）计时就清零；一直不动先记作疑似，撑够确认时长才写成正式记录。不绑定固定姿势，趴桌、侧脸、后排远距离都能用。纯娱乐用途，数字别当真。"
                        FontSize="12" Opacity="0.65" TextWrapping="Wrap" />
 
             <!-- ================= 实时画面 ================= -->
@@ -30,11 +30,19 @@
                     <TextBlock Text="清醒" FontSize="12" Opacity="0.7" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="4">
-                    <Border Width="10" Height="10" CornerRadius="2" Background="#F05050" VerticalAlignment="Center" />
-                    <TextBlock Text="疑似睡着" FontSize="12" Opacity="0.7" VerticalAlignment="Center" />
+                    <Border Width="10" Height="10" CornerRadius="2" Background="#F0A030" VerticalAlignment="Center" />
+                    <TextBlock Text="疑似（框上有进度条）" FontSize="12" Opacity="0.7" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="4">
-                    <Border Width="10" Height="10" CornerRadius="2" Background="#B4B45A" VerticalAlignment="Center" />
+                    <Border Width="10" Height="10" CornerRadius="2" Background="#E05050" VerticalAlignment="Center" />
+                    <TextBlock Text="确认沉睡" FontSize="12" Opacity="0.7" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Border Width="10" Height="10" CornerRadius="2" Background="#5A9CF0" VerticalAlignment="Center" />
+                    <TextBlock Text="老师（不计入）" FontSize="12" Opacity="0.7" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Border Width="10" Height="10" CornerRadius="2" Background="#C8C85A" VerticalAlignment="Center" />
                     <TextBlock Text="判断不了（背对 / 被挡 / 太远）" FontSize="12" Opacity="0.7" VerticalAlignment="Center" />
                 </StackPanel>
             </StackPanel>
@@ -53,6 +61,13 @@
 
             <!-- ================= 摄像头 ================= -->
             <TextBlock Text="摄像头" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="本机设备" Width="110" VerticalAlignment="Center" />
+                <ComboBox x:Name="CameraCombo" Width="330" PlaceholderText="点【刷新】列出本机摄像头" />
+                <Button x:Name="CameraRefreshButton" Content="刷新" />
+            </StackPanel>
+            <TextBlock x:Name="CameraHint" Text="点【刷新】逐个试开一遍设备，能开的才会列出来。挑一个会自动填进下面的视频源。"
+                       FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="视频源" Width="110" VerticalAlignment="Center" />
                 <TextBox x:Name="SourceBox" Width="300"
@@ -79,27 +94,46 @@
 
             <!-- ================= 班级 ================= -->
             <TextBlock Text="班级" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
-            <TextBlock Text="应到人数只用来算“画面里没找到的人”，填个大概就行。"
+            <TextBlock Text="应到人数有两个用处：算“画面里还差几个人”，以及当检测的人数上限——多出来的框（反光、海报上的人、隔壁班路过）直接丢掉。0 表示不限制。"
                        FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="应到人数" Width="110" VerticalAlignment="Center" />
                 <Slider x:Name="ClassSizeSlider" Width="260" VerticalAlignment="Center"
-                        Minimum="1" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" />
+                        Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" />
                 <TextBlock x:Name="ClassSizeValue" Text="45" Width="46" VerticalAlignment="Center"
                            FontWeight="SemiBold" TextAlignment="Right" />
-                <TextBlock Text="人" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+                <TextBlock x:Name="ClassSizeHint" Text="人" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
             </StackPanel>
 
             <!-- ================= 判定参数 ================= -->
             <TextBlock Text="判定参数" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <TextBlock Text="判定不看姿势，看“连续多久没有有效动作”。动一下（抬头、转身、举手、睁眼）静置计时就清零，只有一直不动才往“疑似→确认”走。"
+                       FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
             <StackPanel Orientation="Horizontal" Spacing="12">
-                <TextBlock Text="睡眠判定秒数" Width="110" VerticalAlignment="Center" />
+                <TextBlock Text="静置判定" Width="110" VerticalAlignment="Center" />
                 <Slider x:Name="SleepSlider" Width="260" VerticalAlignment="Center"
                         Minimum="2" Maximum="120" TickFrequency="1" IsSnapToTickEnabled="True" />
                 <TextBlock x:Name="SleepValue" Text="8" Width="46" VerticalAlignment="Center"
                            FontWeight="SemiBold" TextAlignment="Right" />
-                <TextBlock Text="秒。核心参数：几秒没睁眼就算睡着，8 比较平衡" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+                <TextBlock Text="秒。连续这么久没有任何动作，进入“疑似”" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
             </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="沉睡确认" Width="110" VerticalAlignment="Center" />
+                <Slider x:Name="ConfirmSlider" Width="260" VerticalAlignment="Center"
+                        Minimum="5" Maximum="120" TickFrequency="1" IsSnapToTickEnabled="True" />
+                <TextBlock x:Name="ConfirmValue" Text="30" Width="46" VerticalAlignment="Center"
+                           FontWeight="SemiBold" TextAlignment="Right" />
+                <TextBlock Text="秒。疑似再持续这么久才写正式记录 + 抓快照" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="姿态加权" Width="110" VerticalAlignment="Center" />
+                <Slider x:Name="PostureSlider" Width="260" VerticalAlignment="Center"
+                        Minimum="0.2" Maximum="1.0" TickFrequency="0.05" IsSnapToTickEnabled="True" />
+                <TextBlock x:Name="PostureValue" Text="0.60" Width="46" VerticalAlignment="Center"
+                           FontWeight="SemiBold" TextAlignment="Right" />
+                <TextBlock Text="低头又没睁眼时，判定时长乘这个系数（越小越快）" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+            </StackPanel>
+            <CheckBox x:Name="LegacyPostureBox" Content="经典姿态判定（1.4 的老规则：低头 / 闭眼直接算睡着）" />
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="在座记忆" Width="110" VerticalAlignment="Center" />
                 <Slider x:Name="PresenceSlider" Width="260" VerticalAlignment="Center"
@@ -116,6 +150,81 @@
                            FontWeight="SemiBold" TextAlignment="Right" />
                 <TextBlock Text="越大越难判成睁眼。对照上面的实时画面调" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
             </StackPanel>
+
+            <TextBlock Text="机位预设" FontSize="14" FontWeight="SemiBold" Margin="0,6,0,0" />
+            <TextBlock Text="教室机位差别很大，同一套阈值不可能都合适。选一个最接近的，插件会把置信度、低头阈值、匹配宽容度一起调好；套完还可以继续手动微调。"
+                       FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="当前机位" Width="110" VerticalAlignment="Center" />
+                <ComboBox x:Name="PresetCombo" Width="260" />
+            </StackPanel>
+            <TextBlock x:Name="PresetNote" Text="—" FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+
+            <!-- ================= 多人跟踪与环境 ================= -->
+            <TextBlock Text="多人跟踪与环境" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <TextBlock Text="每个人有自己的编号和计时，互不影响。趴桌把脸埋进胳膊、侧脸、后排远距离、讲台两侧侧身，都靠下面这几项兜住。"
+                       FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="遮挡续踪" Width="110" VerticalAlignment="Center" />
+                <Slider x:Name="OcclusionSlider" Width="260" VerticalAlignment="Center"
+                        Minimum="2" Maximum="60" TickFrequency="1" IsSnapToTickEnabled="True" />
+                <TextBlock x:Name="OcclusionValue" Text="12" Width="46" VerticalAlignment="Center"
+                           FontWeight="SemiBold" TextAlignment="Right" />
+                <TextBlock Text="秒。整个人被挡住时，编号保留这么久不重置计时" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="漏检缓存" Width="110" VerticalAlignment="Center" />
+                <Slider x:Name="CacheSlider" Width="260" VerticalAlignment="Center"
+                        Minimum="1" Maximum="30" TickFrequency="1" IsSnapToTickEnabled="True" />
+                <TextBlock x:Name="CacheValue" Text="6" Width="46" VerticalAlignment="Center"
+                           FontWeight="SemiBold" TextAlignment="Right" />
+                <TextBlock Text="秒。偶尔漏检、侧身闪一下，靠它接回原来那个人" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="讲台区域" Width="110" VerticalAlignment="Center" />
+                <Slider x:Name="PodiumSlider" Width="260" VerticalAlignment="Center"
+                        Minimum="5" Maximum="50" TickFrequency="1" IsSnapToTickEnabled="True" />
+                <TextBlock x:Name="PodiumValue" Text="20" Width="46" VerticalAlignment="Center"
+                           FontWeight="SemiBold" TextAlignment="Right" />
+                <TextBlock Text="% 画面上方这一段算讲台，站在里面的人优先判成老师" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+            </StackPanel>
+            <CheckBox x:Name="ExcludeTeacherBox" Content="自动排除老师（站立、走动、讲台区的人不计入沉睡和抬头率）" />
+            <CheckBox x:Name="SingleEyeBox" Content="单眼可判（侧脸只有一只眼看得见时，也拿来判断）" />
+            <CheckBox x:Name="TrustPostureBox" Content="后排多信姿态（人很小、眼睛只有几个像素时，别硬看眼睛）" />
+
+            <!-- ================= 推理开销 ================= -->
+            <TextBlock Text="推理开销" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <CheckBox x:Name="ChunkBox" Content="分块推理（每帧只算一个块，四帧覆盖全画面，单帧开销砍一半）" />
+            <CheckBox x:Name="MicThrottleBox" Content="麦克风被占用时自动降频（上网课、录音的时候给别人让路，之后自动恢复）" />
+
+            <!-- ================= 证据快照 ================= -->
+            <TextBlock Text="证据快照" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <TextBlock Text="只在“确认沉睡”的那一刻抓一张局部裁剪图，带上课程名、时间、编号和入睡时间段。不存整幅画面、不提取人脸特征、不联网。疑似和中途醒来都不存。"
+                       FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+            <CheckBox x:Name="SnapshotBox" Content="保存证据快照（默认关；开了才会往本机硬盘写图）" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="存放目录" Width="110" VerticalAlignment="Center" />
+                <TextBox x:Name="SnapshotFolderBox" Width="330" PlaceholderText="留空 = 配置目录下的 snapshots" />
+                <Button x:Name="SnapshotPickButton" Content="选择…" />
+                <Button x:Name="SnapshotOpenButton" Content="打开" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="保留天数" Width="110" VerticalAlignment="Center" />
+                <Slider x:Name="SnapshotDaysSlider" Width="260" VerticalAlignment="Center"
+                        Minimum="7" Maximum="365" TickFrequency="1" IsSnapToTickEnabled="True" />
+                <TextBlock x:Name="SnapshotDaysValue" Text="120" Width="46" VerticalAlignment="Center"
+                           FontWeight="SemiBold" TextAlignment="Right" />
+                <TextBlock Text="天。超期的自动删掉" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="图片质量" Width="110" VerticalAlignment="Center" />
+                <Slider x:Name="SnapshotQualitySlider" Width="260" VerticalAlignment="Center"
+                        Minimum="40" Maximum="95" TickFrequency="5" IsSnapToTickEnabled="True" />
+                <TextBlock x:Name="SnapshotQualityValue" Text="70" Width="46" VerticalAlignment="Center"
+                           FontWeight="SemiBold" TextAlignment="Right" />
+                <TextBlock Text="JPEG 质量，低一点省盘" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+            </StackPanel>
+            <TextBlock x:Name="SnapshotUsageText" Text="占用：—" FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
 
             <!-- ================= 课表同步 ================= -->
             <TextBlock Text="课表同步" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
@@ -167,7 +276,12 @@
             <!-- ================= 自动化 ================= -->
             <TextBlock Text="自动化" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
             <CheckBox x:Name="AutoStartBox" Content="上课自动开始监测" />
-            <CheckBox x:Name="AutoStopBox" Content="下课 / 放学自动停止" />
+            <CheckBox x:Name="AutoStopBox" Content="下课 / 放学自动停止（摄像头句柄一起释放）" />
+
+            <TextBlock Text="只在这些课自动开" FontSize="14" FontWeight="SemiBold" Margin="0,6,0,0" />
+            <TextBlock Text="全不勾 = 每节课都开。勾了就只有勾到的科目自动开；手动点【重启监测】不受这个限制，随时能开。"
+                       FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+            <WrapPanel x:Name="SubjectPanel" />
 
             <!-- ================= 课后总结 ================= -->
             <TextBlock Text="课后总结" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
@@ -192,6 +306,16 @@
             <TextBlock Text="提示：拖动滑动条会自动保存。检测参数要生效还得点【重启监测】；延迟弹出、配色这类改完下一节课就按新的来。灯光变化大或者逆光时，回来对照实时画面重调一次睁眼阈值。"
                        FontSize="12" Opacity="0.55" TextWrapping="Wrap" Margin="0,4,0,0" />
 
+            <!-- ================= 诊断 ================= -->
+            <TextBlock Text="诊断" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <TextBlock Text="日志写在配置目录的 logs 下，按天一个文件、超过 2MB 自动换一个。默认只留警告和错误，排问题时再调成“调试”。"
+                       FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="日志级别" Width="110" VerticalAlignment="Center" />
+                <ComboBox x:Name="LogLevelCombo" Width="180" />
+                <Button x:Name="LogFolderButton" Content="打开日志目录" />
+            </StackPanel>
+
             <!-- ================= 关于 ================= -->
             <TextBlock Text="关于" FontSize="16" FontWeight="SemiBold" Margin="0,8,0,0" />
             <Border BorderThickness="1" BorderBrush="#33888888" CornerRadius="6" Padding="14">
@@ -203,7 +327,7 @@
                         </Border>
                     </StackPanel>
                     <TextBlock Text="作者：ShirakawaFM / 白川方明" FontSize="12" Opacity="0.75" />
-                    <TextBlock Text="接一个教室摄像头，反推画面里有几个人疑似睡着。画面只在本机内存里过一遍，不存盘、不上传、也不做人脸识别，输出只有人数。"
+                    <TextBlock Text="接一个教室摄像头，按“连续静置时长”反推画面里有几个人睡着了。画面只在本机内存里过一遍，不联网、不做人脸识别、不认人；不开证据快照就不往硬盘写任何一帧，开了也只存判定那一刻的局部裁剪图。"
                                FontSize="12" Opacity="0.6" TextWrapping="Wrap" />
                     <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,2,0,0">
                         <Button x:Name="RepoButton" Content="项目主页" />

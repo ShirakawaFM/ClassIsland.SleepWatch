@@ -12,6 +12,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Avalonia.Styling;
 using Avalonia.Threading;
 
@@ -71,6 +72,9 @@ public partial class SummaryWindow : Window
 
     private readonly List<Border> _chips = new();
     private readonly List<Control> _factRows = new();
+
+    /// <summary>当前页面上挂着的快照位图。换页 / 关窗时要自己收，Avalonia 不会替你放。</summary>
+    private readonly List<Bitmap> _snapBitmaps = new();
     private readonly TranslateTransform _bodyShift = new();
 
     /// <summary>翻页圆点共用一只手指光标，别每次重建都新造一个平台光标。</summary>
@@ -125,6 +129,10 @@ public partial class SummaryWindow : Window
             _advance = null;
             _pageClock.Stop();
 
+            // 位图是托管堆外面的东西，窗口关了得自己放掉
+            foreach (var bitmap in _snapBitmaps) bitmap.Dispose();
+            _snapBitmaps.Clear();
+
             if (ReferenceEquals(_instance, this)) _instance = null;
         };
 
@@ -148,8 +156,8 @@ public partial class SummaryWindow : Window
 
     // ================= 打开入口 =================
 
-    public static void Show(SummarySettings cfg, bool sample)
-        => ShowPages(cfg, BuildPages(cfg, sample), sample);
+    public static void Show(SummarySettings cfg, bool sample, LessonRecord? focus = null)
+        => ShowPages(cfg, BuildPages(cfg, sample, focus), sample);
 
     /// <summary>
     /// 用现成的页面弹窗。试弹（<see cref="PreviewLab"/>）走这条：
@@ -213,7 +221,7 @@ public partial class SummaryWindow : Window
         RestartClock();
     }
 
-    private static List<SummaryPage> BuildPages(SummarySettings cfg, bool sample)
+    private static List<SummaryPage> BuildPages(SummarySettings cfg, bool sample, LessonRecord? focus = null)
     {
         var detection = SettingsStore.Load();
 
@@ -221,10 +229,29 @@ public partial class SummaryWindow : Window
             ? SampleData.BuildDays(Math.Clamp(cfg.HistoryDays, 3, 6))
             : SleepLedger.Instance.RecentDays(cfg.HistoryDays, DateTime.Now);
 
-        var pages = days
-            .Take(MaxDayPages)
-            .Select((d, i) => SummaryBuilder.Build(d, days, cfg, detection.ClassSize, detection.SleepSeconds, i == 0))
-            .ToList();
+        var pages = new List<SummaryPage>();
+
+        // 刚下课那一节：显式指定，绝不因为"今天另一节睡的人更多"而被顶掉
+        if (focus != null && !sample)
+        {
+            var day = days.FirstOrDefault(d => d.Date == focus.Start.Date)
+                      ?? new DayRecord { Date = focus.Start.Date };
+
+            pages.Add(SummaryBuilder.Build(day, days, cfg, detection.ClassSize,
+                detection.SleepSeconds, isLead: true, focus: focus));
+        }
+
+        // 其余页按天翻。已经有首节那页时，今天这一页跳过，免得同一节课出现两遍
+        var skipToday = pages.Count > 0;
+
+        foreach (var (day, index) in days.Select((d, i) => (d, i)))
+        {
+            if (pages.Count >= MaxDayPages) break;
+            if (skipToday && index == 0) continue;
+
+            pages.Add(SummaryBuilder.Build(day, days, cfg, detection.ClassSize,
+                detection.SleepSeconds, isLead: pages.Count == 0));
+        }
 
         pages.Add(SummaryBuilder.BuildTotal(days, cfg, detection.ClassSize));
 
@@ -385,6 +412,12 @@ public partial class SummaryWindow : Window
         public TextBlock FactsTitle = null!;
         public TextBlock FactsCount = null!;
         public StackPanel FactsPanel = null!;
+        public Border SnapshotsHost = null!;
+        public Button SnapshotToggle = null!;
+        public TextBlock SnapshotTitle = null!;
+        public TextBlock SnapshotHint = null!;
+        public ScrollViewer SnapshotScroller = null!;
+        public WrapPanel SnapshotPanel = null!;
         public WrapPanel StatsPanel = null!;
         public StackPanel Dots = null!;
         public TextBlock PlayHint = null!;
@@ -409,6 +442,8 @@ public partial class SummaryWindow : Window
         public CheckBox CbLongest = null!;
         public CheckBox CbPeak = null!;
         public CheckBox CbFacts = null!;
+        public CheckBox CbHeadUp = null!;
+        public CheckBox CbSnapshots = null!;
         public CheckBox CbSilent = null!;
         public CheckBox CbAutoPopup = null!;
         public CheckBox CbAutoPlay = null!;
@@ -454,6 +489,12 @@ public partial class SummaryWindow : Window
             FactsTitle = this.FindControl<TextBlock>("FactsTitle")!,
             FactsCount = this.FindControl<TextBlock>("FactsCount")!,
             FactsPanel = this.FindControl<StackPanel>("FactsPanel")!,
+            SnapshotsHost = this.FindControl<Border>("SnapshotsHost")!,
+            SnapshotToggle = this.FindControl<Button>("SnapshotToggle")!,
+            SnapshotTitle = this.FindControl<TextBlock>("SnapshotTitle")!,
+            SnapshotHint = this.FindControl<TextBlock>("SnapshotHint")!,
+            SnapshotScroller = this.FindControl<ScrollViewer>("SnapshotScroller")!,
+            SnapshotPanel = this.FindControl<WrapPanel>("SnapshotPanel")!,
             StatsPanel = this.FindControl<WrapPanel>("StatsPanel")!,
             Dots = this.FindControl<StackPanel>("Dots")!,
             PlayHint = this.FindControl<TextBlock>("PlayHint")!,
@@ -478,6 +519,8 @@ public partial class SummaryWindow : Window
             CbLongest = this.FindControl<CheckBox>("CbLongest")!,
             CbPeak = this.FindControl<CheckBox>("CbPeak")!,
             CbFacts = this.FindControl<CheckBox>("CbFacts")!,
+            CbHeadUp = this.FindControl<CheckBox>("CbHeadUp")!,
+            CbSnapshots = this.FindControl<CheckBox>("CbSnapshots")!,
             CbSilent = this.FindControl<CheckBox>("CbSilent")!,
             CbAutoPopup = this.FindControl<CheckBox>("CbAutoPopup")!,
             CbAutoPlay = this.FindControl<CheckBox>("CbAutoPlay")!,
@@ -572,6 +615,11 @@ public partial class SummaryWindow : Window
         _ui.FactsTitle.Foreground = TextBrush(0.8);
         _ui.FactsCount.Foreground = TextBrush(0.45);
 
+        _ui.SnapshotsHost.Background = TextBrush(0.025);
+        _ui.SnapshotsHost.BorderBrush = TextBrush(0.12);
+        _ui.SnapshotTitle.Foreground = TextBrush(0.8);
+        _ui.SnapshotHint.Foreground = TextBrush(0.45);
+
         _ui.PlayHint.Foreground = TextBrush(0.42);
         _ui.ConfigPanel.Background = new SolidColorBrush(_surface);
         _ui.ConfigPanel.BorderBrush = TextBrush(0.15);
@@ -645,7 +693,14 @@ public partial class SummaryWindow : Window
         _ui.StatsPanel.Children.Clear();
         _chips.Clear();
 
-        var chips = page.Stats.Where(s => s.Enabled && !ReferenceEquals(s, hero)).Take(3).ToList();
+        // 抬头率是 1.5 新加的主指标，必须占一个位置；其余按原顺序补满三条
+        var rest = page.Stats.Where(s => s.Enabled && !ReferenceEquals(s, hero)).ToList();
+        var priority = rest.Where(c => c.Label.Contains("抬头率", StringComparison.Ordinal)).ToList();
+
+        var chips = priority
+            .Concat(rest.Where(c => !priority.Contains(c)))
+            .Take(3)
+            .ToList();
 
         foreach (var card in chips)
         {
@@ -677,12 +732,15 @@ public partial class SummaryWindow : Window
             _factRows.Add(row);
         }
 
+        // ---- 证据快照：默认折叠，点标题才展开 ----
+        RenderSnapshots(page);
+
         // 没有曲线也没有记录时，让左边独占整幅
-        _ui.BodyGrid.ColumnDefinitions = showChart || _ui.FactsHost.IsVisible
+        _ui.BodyGrid.ColumnDefinitions = showChart || _ui.FactsHost.IsVisible || _ui.SnapshotsHost.IsVisible
             ? new ColumnDefinitions("1.06*,0.94*")
             : new ColumnDefinitions("1*");
 
-        _ui.RightCol.IsVisible = showChart || _ui.FactsHost.IsVisible;
+        _ui.RightCol.IsVisible = showChart || _ui.FactsHost.IsVisible || _ui.SnapshotsHost.IsVisible;
 
         BuildDots();
 
@@ -698,6 +756,105 @@ public partial class SummaryWindow : Window
         else StopFrames();
 
         _building = false;
+    }
+
+    /// <summary>曲线卡的正常高度。展开快照时会让位给缩略图。</summary>
+    private const double BaseChartHeight = 196;
+
+    /// <summary>展开快照时曲线压到这个高度。</summary>
+    private const double CompactChartHeight = 146;
+
+    /// <summary>
+    /// 证据快照区。默认折叠，点标题展开缩略图。
+    ///
+    /// 这里会真的把 JPEG 读进内存，所以换页时必须先清控件再 Dispose 位图，
+    /// 否则一节课翻来翻去能把几十兆图片全留在内存里。
+    /// </summary>
+    private void RenderSnapshots(SummaryPage page)
+    {
+        _ui.SnapshotPanel.Children.Clear();
+
+        foreach (var bitmap in _snapBitmaps) bitmap.Dispose();
+        _snapBitmaps.Clear();
+
+        var show = _cfg.ShowSnapshots && page.Snapshots.Count > 0;
+
+        _ui.SnapshotsHost.IsVisible = show;
+        _ui.SnapshotScroller.IsVisible = false;
+
+        // 展开快照时把曲线压低一点，两块加起来的最大高度不能超过正文行，
+        // 否则最下面那张缩略图会压到底栏上
+        _ui.Chart.MinHeight = BaseChartHeight;
+
+        if (!show) return;
+
+        _ui.SnapshotTitle.Text = $"证据快照 · {page.Snapshots.Count} 张";
+        _ui.SnapshotHint.Text = "点开看 ›";
+
+        foreach (var item in page.Snapshots.Take(6))
+        {
+            _ui.SnapshotPanel.Children.Add(BuildSnapshotCard(item));
+        }
+    }
+
+    private Control BuildSnapshotCard(SnapshotItem item)
+    {
+        var image = new Image
+        {
+            Width = 86,
+            Height = 62,
+            Stretch = Stretch.UniformToFill
+        };
+
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(item.Path) && File.Exists(item.Path))
+            {
+                var bitmap = new Bitmap(item.Path);
+                _snapBitmaps.Add(bitmap);
+                image.Source = bitmap;
+            }
+        }
+        catch
+        {
+            // 文件被删了或者解不开：留一个空框，不影响别的卡片
+        }
+
+        var frame = new Border
+        {
+            Width = 86,
+            Height = 62,
+            CornerRadius = new CornerRadius(7),
+            ClipToBounds = true,
+            Background = TextBrush(0.06),
+            Child = image
+        };
+
+        var time = new TextBlock
+        {
+            Text = item.Time,
+            FontSize = 9.5,
+            FontFamily = new FontFamily("Consolas, monospace"),
+            Foreground = TextBrush(0.62),
+            Margin = new Thickness(1, 3, 0, 0)
+        };
+
+        var caption = new TextBlock
+        {
+            Text = item.Caption,
+            FontSize = 9,
+            MaxLines = 1,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            Foreground = TextBrush(0.42),
+            Margin = new Thickness(1, 0, 0, 0)
+        };
+
+        var stack = new StackPanel { Width = 86, Margin = new Thickness(0, 0, 8, 6) };
+        stack.Children.Add(frame);
+        stack.Children.Add(time);
+        stack.Children.Add(caption);
+
+        return stack;
     }
 
     /// <summary>
@@ -971,6 +1128,8 @@ public partial class SummaryWindow : Window
         _ui.CbLongest.IsChecked = _cfg.ShowLongest;
         _ui.CbPeak.IsChecked = _cfg.ShowPeak;
         _ui.CbFacts.IsChecked = _cfg.ShowFacts;
+        _ui.CbHeadUp.IsChecked = _cfg.ShowHeadUpRate;
+        _ui.CbSnapshots.IsChecked = _cfg.ShowSnapshots;
         _ui.CbSilent.IsChecked = _cfg.SilentMode;
         _ui.CbAutoPopup.IsChecked = _cfg.AutoPopupOnLessonEnd;
         _ui.CbAutoPlay.IsChecked = _cfg.AutoPlay;
@@ -1015,6 +1174,8 @@ public partial class SummaryWindow : Window
         Toggle(_ui.CbLongest, v => _cfg.ShowLongest = v);
         Toggle(_ui.CbPeak, v => _cfg.ShowPeak = v);
         Toggle(_ui.CbFacts, v => _cfg.ShowFacts = v);
+        Toggle(_ui.CbHeadUp, v => _cfg.ShowHeadUpRate = v);
+        Toggle(_ui.CbSnapshots, v => _cfg.ShowSnapshots = v);
         Toggle(_ui.CbSilent, v => _cfg.SilentMode = v);
         Toggle(_ui.CbAutoPopup, v => _cfg.AutoPopupOnLessonEnd = v);
         Toggle(_ui.CbAutoClose, v => _cfg.AutoCloseAtEnd = v);
@@ -1069,6 +1230,20 @@ public partial class SummaryWindow : Window
         WireHex(_ui.HexSurface, v => _cfg.Surface = v);
         WireHex(_ui.HexAccent, v => _cfg.Accent = v);
         WireHex(_ui.HexText, v => _cfg.Text = v);
+
+        _ui.SnapshotToggle.Click += (_, _) =>
+        {
+            // 折叠只影响当前这一页的展开状态，不写进配置：
+            // 下次弹窗还是「先收起，想看再点开」的样子
+            _ui.SnapshotScroller.IsVisible = !_ui.SnapshotScroller.IsVisible;
+            _ui.SnapshotHint.Text = _ui.SnapshotScroller.IsVisible ? "收起 ‹" : "点开看 ›";
+
+            // 让曲线让出一截高度，缩略图才不会压到底栏
+            _ui.Chart.MinHeight = _ui.SnapshotScroller.IsVisible ? CompactChartHeight : BaseChartHeight;
+
+            // 展开后右侧变高，把这一页的入场动画直接推到头，别让缩略图一张张慢慢浮
+            if (_ui.SnapshotScroller.IsVisible) SkipEntrance();
+        };
 
         _ui.SampleButton.Click += (_, _) =>
         {

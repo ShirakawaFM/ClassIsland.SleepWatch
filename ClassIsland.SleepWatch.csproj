@@ -11,13 +11,13 @@
     <PlatformTarget>x64</PlatformTarget>
     <AssemblyName>ClassIsland.SleepWatch</AssemblyName>
     <RootNamespace>ClassIsland.SleepWatch</RootNamespace>
-    <Version>1.4.0.0</Version>
+    <Version>1.5.0.0</Version>
     <AssemblyTitle>SleepWatch 课堂睡意监测</AssemblyTitle>
     <Product>SleepWatch</Product>
     <Company>ShirakawaFM</Company>
     <Authors>ShirakawaFM / 白川方明</Authors>
     <Copyright>© 2026 ShirakawaFM / 白川方明</Copyright>
-    <Description>用教室摄像头识别趴桌、长时间没睁眼的学生，在主界面显示"疑似睡着"人数。</Description>
+    <Description>按连续静置时长判断谁睡着了：静置进疑似、撑够才确认，主界面显示确认沉睡人数与抬头率。</Description>
     <RepositoryUrl>https://github.com/ShirakawaFM/ClassIsland.SleepWatch</RepositoryUrl>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
     <!-- 像素背景直接往 WriteableBitmap 的帧缓冲里写，省掉上万次托管调用 -->
@@ -34,6 +34,9 @@
     </PackageReference>
     <PackageReference Include="OpenCvSharp4" Version="4.9.0.20240103" />
     <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.9.0.20240103" />
+    <!-- 快照要往图上写中文，OpenCV 自带的 Hershey 字体只有 ASCII。
+         SkiaSharp 本来就是 Avalonia 的传递依赖，这里只是显式引用同一个版本，不新增原生库。 -->
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
   </ItemGroup>
 
   <ItemGroup>
@@ -53,10 +56,34 @@
     </None>
   </ItemGroup>
 
-  <!-- 打包前剔除 x86 原生库：项目只编译 x64，win-x86 那两个 DLL 有 65MB，纯属白白撑大插件包 -->
+  <!-- 打包前剔除用不上的原生库：
+       本项目只编译 x64，win-x86 / win-arm64 / osx / linux 那几套全是白撑包体。
+       SkiaSharp 3.x 会带上 arm64 和 macOS 的原生库（合起来一百多兆），必须一起清掉。 -->
   <Target Name="PruneX86Runtime" BeforeTargets="CreateCipx" Condition="'$(CreateCipx)' == 'true'">
-    <RemoveDir Directories="$(OutputPath)runtimes\win-x86" />
-    <Message Text="已移除 runtimes\win-x86" Importance="high" />
+    <ItemGroup>
+      <PruneRuntimeDir Include="$(OutputPath)runtimes\win-x86" />
+      <PruneRuntimeDir Include="$(OutputPath)runtimes\win-arm64" />
+      <PruneRuntimeDir Include="$(OutputPath)runtimes\osx" />
+      <PruneRuntimeDir Include="$(OutputPath)runtimes\osx-x64" />
+      <PruneRuntimeDir Include="$(OutputPath)runtimes\osx-arm64" />
+      <PruneRuntimeDir Include="$(OutputPath)runtimes\linux" />
+      <PruneRuntimeDir Include="$(OutputPath)runtimes\linux-x64" />
+      <PruneRuntimeDir Include="$(OutputPath)runtimes\linux-arm" />
+      <PruneRuntimeDir Include="$(OutputPath)runtimes\linux-arm64" />
+      <PruneRuntimeDir Include="$(OutputPath)runtimes\linux-musl-x64" />
+      <PruneRuntimeDir Include="$(OutputPath)runtimes\browser-wasm" />
+      <PruneRuntimeDir Include="$(OutputPath)runtimes\android" />
+      <PruneRuntimeDir Include="$(OutputPath)runtimes\ios" />
+      <PruneRuntimeDir Include="$(OutputPath)runtimes\maccatalyst" />
+      <PruneRuntimeDir Include="$(OutputPath)runtimes\tvos" />
+    </ItemGroup>
+    <RemoveDir Directories="@(PruneRuntimeDir)" />
+    <!-- 原生库的调试符号（libSkiaSharp.pdb 一个就 81MB）对运行毫无用处，直接丢掉 -->
+    <ItemGroup>
+      <NativeSymbolFile Include="$(OutputPath)runtimes\**\*.pdb" />
+    </ItemGroup>
+    <Delete Files="@(NativeSymbolFile)" />
+    <Message Text="已剔除非 win-x64 的原生库目录与原生 PDB" Importance="high" />
   </Target>
 
 </Project>

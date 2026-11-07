@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.InteropServices;
 
 using OpenCvSharp;
 
@@ -19,12 +18,13 @@ public struct KeyPoint
 public sealed class PosePerson
 {
     public Rect Box { get; init; }
+
     public float Score { get; init; }
 
-    /// <summary>COCO 17 点：0 鼻 1 左眼 2 右眼 3 左耳 4 右耳 5 左肩 6 右肩 ……</summary>
+    /// <summary>COCO 17 点：0 鼻 1 左眼 2 右眼 3 左耳 4 右耳 5 左肩 6 右肩 11 左髋 12 右髋</summary>
     public KeyPoint[] Kpts { get; init; } = Array.Empty<KeyPoint>();
 
-    /// <summary>头部相对肩线的下沉程度。<0 表示头在肩上，接近 0 或正数说明头低下去了。</summary>
+    /// <summary>头部相对肩线的下沉程度。负数表示头在肩膀上方，接近 0 或正数说明头低下去了。</summary>
     public float HeadDrop { get; set; } = float.NaN;
 
     /// <summary>是否判定为低头 / 伏案。</summary>
@@ -40,7 +40,44 @@ public sealed class PosePerson
 
     public double EyeScore { get; set; }
 
+    /// <summary>姿态分值 0~1：1 = 完全趴桌低头，0 = 正常抬头。</summary>
+    public double PostureScore { get; set; }
+
+    /// <summary>埋头遮挡分值 0~1：五官关键点越不可信，这个值越高。</summary>
+    public double FaceOcclusion { get; set; }
+
+    /// <summary>头部参考点（鼻子 → 眼睛 → 耳朵依次退化）。</summary>
+    public Point2f HeadPoint { get; set; }
+
+    public bool HasHeadPoint { get; set; }
+
+    /// <summary>髋部关键点可见。站着的人才看得到髋部，坐着时被课桌挡住。</summary>
+    public bool HipsVisible { get; set; }
+
     public Point Center => new(Box.X + Box.Width / 2, Box.Y + Box.Height / 2);
+}
+
+/// <summary>一次推理的参数。所有阈值都由配置传进来，不在检测器里写死。</summary>
+public sealed class PoseOptions
+{
+    public float MinScore { get; init; } = 0.32f;
+
+    public double EyeThreshold { get; init; } = 0.10;
+
+    /// <summary>低头判定的落差阈值。</summary>
+    public float HeadDownThreshold { get; init; } = -0.12f;
+
+    /// <summary>侧脸时只有一只眼可判也算数。</summary>
+    public bool SingleEyeMode { get; init; } = true;
+
+    /// <summary>后排少信眼睛、多信姿态：目标太小就干脆不做眼部判定。</summary>
+    public bool TrustPostureOverEyes { get; init; } = true;
+
+    /// <summary>只推理这一块（分块检测用）。null = 整幅画面。</summary>
+    public Rect? Region { get; init; }
+
+    /// <summary>推理结果最少要这么大才保留。后排小目标可以放宽。</summary>
+    public int MinBoxSide { get; init; } = 4;
 }
 
 /// <summary>
@@ -49,6 +86,9 @@ public sealed class PosePerson
 /// 用人体的原因很直接：学生把头埋到桌上时，画面里根本没有脸，
 /// 只有一个人形轮廓。人脸检测在这种状态下会整片漏掉，
 /// 而姿态模型能从肩线判断"头掉下去了"。
+///
+/// 支持只推理画面的一块（<see cref="PoseOptions.Region"/>）：教室画面上半截是天花板、
+/// 两边是墙，全图推理有一大半算力花在没人地方。
 /// </summary>
 public sealed class PoseDetector : IDisposable
 {
@@ -99,131 +139,167 @@ public sealed class PoseDetector : IDisposable
         }
     }
 
-    /// <summary>
-    /// 检测一帧里所有人的位置和姿态。返回坐标已经映射回传入图像的像素坐标。
-    /// </summary>
-    public List<PosePerson> Detect(Mat bgr, float minScore, double eyeThreshold)
+    /// <summary>检测一帧里所有人的位置和姿态。返回坐标是整幅画面的像素坐标。</summary>
+    public List<PosePerson> Detect(Mat frame, PoseOptions options)
     {
         var result = new List<PosePerson>();
-        if (_net == null || bgr.Empty()) return result;
+        if (_net == null || frame.Empty()) return result;
+
+        var region = options.Region ?? new Rect(0, 0, frame.Width, frame.Height);
+
+        // 分块时裁出这一块来推理：同样的 640 输入，等效分辨率翻倍，
+        // 后排小目标就是这么捞回来的
+        var cropped = !IsFull(region, frame);
+
+        Mat view;
+        if (cropped)
+        {
+            region = Clamp(region, frame.Width, frame.Height);
+            if (region.Width < 16 || region.Height < 16) return result;
+            view = new Mat(frame, region);
+        }
+        else
+        {
+            view = frame;
+        }
 
         try
         {
-            // 等比缩放 + 灰边填充，避免把人拉变形
-            var scale = Math.Min(InputSize / (float)bgr.Width, InputSize / (float)bgr.Height);
-            var nw = Math.Max(1, (int)Math.Round(bgr.Width * scale));
-            var nh = Math.Max(1, (int)Math.Round(bgr.Height * scale));
-            var padX = (InputSize - nw) / 2;
-            var padY = (InputSize - nh) / 2;
-
-            using var resized = new Mat();
-            Cv2.Resize(bgr, resized, new Size(nw, nh), 0, 0, InterpolationFlags.Linear);
-
-            using var input = new Mat(new Size(InputSize, InputSize), MatType.CV_8UC3,
-                new Scalar(114, 114, 114));
-
-            using (var roi = new Mat(input, new Rect(padX, padY, nw, nh)))
-            {
-                resized.CopyTo(roi);
-            }
-
-            using var blob = OpenCvSharp.Dnn.CvDnn.BlobFromImage(
-                input, 1.0 / 255.0, new Size(InputSize, InputSize),
-                new Scalar(0, 0, 0), true, false);
-
-            _net.SetInput(blob);
-            using var output = _net.Forward();
-
-            if (output.Empty() || output.Dims != 3) return result;
-
-            var d1 = output.Size(1);
-            var d2 = output.Size(2);
-
-            // 有些导出是 [1,56,8400]，有些是 [1,8400,56]，两种都认
-            var transposed = d1 != Attrib;
-            var anchors = transposed ? d1 : d2;
-            if (anchors <= 0) return result;
-
-            var total = (long)Attrib * anchors;
-            if (total <= 0 || total > 64_000_000) return result;
-
-            if (_decode.Length < total) _decode = new float[total];
-            var data = _decode;
-
-            // 输出几乎总是连续的。万一不是，才复制一份出来读 —— 但复制完就扔，
-            // 不再让 Mat 的 Clone 每帧多留一块非托管内存
-            var flat = output.IsContinuous() ? null : output.Clone();
-
-            try
-            {
-                Marshal.Copy(flat is null ? output.Data : flat.Data, data, 0, (int)total);
-            }
-            finally
-            {
-                flat?.Dispose();
-            }
-
-            var candidates = new List<PosePerson>();
-
-            for (var j = 0; j < anchors; j++)
-            {
-                var score = Read(data, j, 4, transposed, anchors);
-                if (score < minScore) continue;
-
-                var cx = Read(data, j, 0, transposed, anchors);
-                var cy = Read(data, j, 1, transposed, anchors);
-                var w = Read(data, j, 2, transposed, anchors);
-                var h = Read(data, j, 3, transposed, anchors);
-
-                if (w < 4 || h < 4) continue;
-
-                var box = new Rect(
-                    (int)((cx - w / 2f - padX) / scale),
-                    (int)((cy - h / 2f - padY) / scale),
-                    (int)(w / scale),
-                    (int)(h / scale));
-
-                var kpts = new KeyPoint[17];
-                for (var k = 0; k < 17; k++)
-                {
-                    var kx = Read(data, j, 5 + k * 3, transposed, anchors);
-                    var ky = Read(data, j, 6 + k * 3, transposed, anchors);
-                    var kc = Read(data, j, 7 + k * 3, transposed, anchors);
-
-                    kpts[k] = new KeyPoint
-                    {
-                        X = (kx - padX) / scale,
-                        Y = (ky - padY) / scale,
-                        Score = kc
-                    };
-                }
-
-                candidates.Add(new PosePerson { Box = box, Score = score, Kpts = kpts });
-            }
-
-            foreach (var person in Nms(candidates, 0.45f))
-            {
-                EvaluateHead(person);
-                result.Add(person);
-            }
-
-            if (result.Count > 0 && result.Exists(CanJudgeEyes))
-            {
-                _gray ??= new Mat();
-                Cv2.CvtColor(bgr, _gray, ColorConversionCodes.BGR2GRAY);
-
-                foreach (var person in result)
-                {
-                    EvaluateEyes(_gray, person, eyeThreshold);
-                }
-            }
+            DetectCore(view, region.X, region.Y, options, result);
         }
         catch (Exception ex)
         {
             LastError = "姿态推理失败：" + ex.Message;
         }
+        finally
+        {
+            if (cropped) view.Dispose();
+        }
 
         return result;
+    }
+
+    private static bool IsFull(Rect region, Mat frame)
+        => region.X == 0 && region.Y == 0 && region.Width == frame.Width && region.Height == frame.Height;
+
+    private static Rect Clamp(Rect rect, int width, int height)
+    {
+        var x = Math.Clamp(rect.X, 0, Math.Max(0, width - 1));
+        var y = Math.Clamp(rect.Y, 0, Math.Max(0, height - 1));
+        var w = Math.Clamp(rect.Width, 1, width - x);
+        var h = Math.Clamp(rect.Height, 1, height - y);
+        return new Rect(x, y, w, h);
+    }
+
+    private void DetectCore(Mat view, int offsetX, int offsetY, PoseOptions options, List<PosePerson> result)
+    {
+        if (_net == null) return;
+
+        // 等比缩放 + 灰边填充，避免把人拉变形
+        var scale = Math.Min(InputSize / (float)view.Width, InputSize / (float)view.Height);
+        var nw = Math.Max(1, (int)Math.Round(view.Width * scale));
+        var nh = Math.Max(1, (int)Math.Round(view.Height * scale));
+        var padX = (InputSize - nw) / 2;
+        var padY = (InputSize - nh) / 2;
+
+        using var resized = new Mat();
+        Cv2.Resize(view, resized, new Size(nw, nh), 0, 0, InterpolationFlags.Linear);
+
+        using var input = new Mat(new Size(InputSize, InputSize), MatType.CV_8UC3, new Scalar(114, 114, 114));
+
+        using (var roi = new Mat(input, new Rect(padX, padY, nw, nh)))
+        {
+            resized.CopyTo(roi);
+        }
+
+        using var blob = OpenCvSharp.Dnn.CvDnn.BlobFromImage(
+            input, 1.0 / 255.0, new Size(InputSize, InputSize), new Scalar(0, 0, 0), true, false);
+
+        _net.SetInput(blob);
+        using var output = _net.Forward();
+
+        if (output.Empty() || output.Dims != 3) return;
+
+        var d1 = output.Size(1);
+        var d2 = output.Size(2);
+
+        // 有些导出是 [1,56,8400]，有些是 [1,8400,56]，两种都认
+        var transposed = d1 != Attrib;
+        var anchors = transposed ? d1 : d2;
+        if (anchors <= 0) return;
+
+        var total = (long)Attrib * anchors;
+        if (total <= 0 || total > 64_000_000) return;
+
+        if (_decode.Length < total) _decode = new float[total];
+        var data = _decode;
+
+        // 输出几乎总是连续的。万一不是，才复制一份出来读 —— 但复制完就扔，
+        // 不再让 Mat 的 Clone 每帧多留一块非托管内存
+        var flat = output.IsContinuous() ? null : output.Clone();
+
+        try
+        {
+            System.Runtime.InteropServices.Marshal.Copy(flat is null ? output.Data : flat.Data, data, 0, (int)total);
+        }
+        finally
+        {
+            flat?.Dispose();
+        }
+
+        var candidates = new List<PosePerson>();
+
+        for (var j = 0; j < anchors; j++)
+        {
+            var score = Read(data, j, 4, transposed, anchors);
+            if (score < options.MinScore) continue;
+
+            var cx = Read(data, j, 0, transposed, anchors);
+            var cy = Read(data, j, 1, transposed, anchors);
+            var w = Read(data, j, 2, transposed, anchors);
+            var h = Read(data, j, 3, transposed, anchors);
+
+            if (w < options.MinBoxSide || h < options.MinBoxSide) continue;
+
+            var box = new Rect(
+                (int)((cx - w / 2f - padX) / scale) + offsetX,
+                (int)((cy - h / 2f - padY) / scale) + offsetY,
+                (int)(w / scale),
+                (int)(h / scale));
+
+            var kpts = new KeyPoint[17];
+            for (var k = 0; k < 17; k++)
+            {
+                var kx = Read(data, j, 5 + k * 3, transposed, anchors);
+                var ky = Read(data, j, 6 + k * 3, transposed, anchors);
+                var kc = Read(data, j, 7 + k * 3, transposed, anchors);
+
+                kpts[k] = new KeyPoint
+                {
+                    X = (kx - padX) / scale + offsetX,
+                    Y = (ky - padY) / scale + offsetY,
+                    Score = kc
+                };
+            }
+
+            candidates.Add(new PosePerson { Box = box, Score = score, Kpts = kpts });
+        }
+
+        foreach (var person in Nms(candidates, 0.45f))
+        {
+            EvaluateHead(person, options);
+            result.Add(person);
+        }
+
+        if (result.Count == 0 || !result.Exists(CanJudgeEyes)) return;
+
+        _gray ??= new Mat();
+        Cv2.CvtColor(view, _gray, ColorConversionCodes.BGR2GRAY);
+
+        foreach (var person in result)
+        {
+            EvaluateEyes(_gray, person, options);
+        }
     }
 
     private static float Read(float[] data, int anchor, int attrib, bool transposed, int anchors)
@@ -236,7 +312,7 @@ public sealed class PoseDetector : IDisposable
     /// 头低没低，用"头相对肩线的落差 ÷ 肩宽"来判断，跟人的远近无关。
     /// 差值小于阈值（头掉到肩膀附近甚至更低）就算伏案。
     /// </summary>
-    private static void EvaluateHead(PosePerson person)
+    private static void EvaluateHead(PosePerson person, PoseOptions options)
     {
         var k = person.Kpts;
         if (k.Length < 17) return;
@@ -245,11 +321,36 @@ public sealed class PoseDetector : IDisposable
         var shoulderW = hasShoulders ? Math.Abs(k[6].X - k[5].X) : 0f;
 
         // 头部参考点：优先鼻子，其次眼睛，再退到耳朵
+        float headX = float.NaN;
         float headY = float.NaN;
-        if (k[0].Score > ConfOk) headY = k[0].Y;
-        else if (k[1].Score > ConfOk && k[2].Score > ConfOk) headY = (k[1].Y + k[2].Y) / 2f;
-        else if (k[3].Score > ConfOk) headY = k[3].Y;
-        else if (k[4].Score > ConfOk) headY = k[4].Y;
+
+        if (k[0].Score > ConfOk) { headX = k[0].X; headY = k[0].Y; }
+        else if (k[1].Score > ConfOk && k[2].Score > ConfOk)
+        {
+            headX = (k[1].X + k[2].X) / 2f;
+            headY = (k[1].Y + k[2].Y) / 2f;
+        }
+        else if (k[3].Score > ConfOk) { headX = k[3].X; headY = k[3].Y; }
+        else if (k[4].Score > ConfOk) { headX = k[4].X; headY = k[4].Y; }
+
+        person.HasHeadPoint = !float.IsNaN(headY);
+        if (person.HasHeadPoint) person.HeadPoint = new Point2f(headX, headY);
+
+        person.HipsVisible = k[11].Score > ConfOk || k[12].Score > ConfOk;
+
+        // 埋头遮挡分值：五官越不可信，说明脸被挡得越狠
+        var faceConf = new[] { k[0].Score, k[1].Score, k[2].Score, k[3].Score, k[4].Score };
+        var sum = 0f;
+        var count = 0;
+
+        foreach (var c in faceConf)
+        {
+            if (c <= 0) continue;
+            sum += c;
+            count++;
+        }
+
+        person.FaceOcclusion = count == 0 ? 1.0 : Math.Clamp(1.0 - sum / count / 0.9, 0, 1);
 
         if (hasShoulders && shoulderW > 8 && !float.IsNaN(headY))
         {
@@ -257,8 +358,11 @@ public sealed class PoseDetector : IDisposable
             var drop = (headY - shoulderMidY) / shoulderW;
 
             person.HeadDrop = drop;
-            person.HeadDown = drop > -0.12f;
+            person.HeadDown = drop > options.HeadDownThreshold;
             person.HeadJudgeable = true;
+
+            // 0 = 头明显抬着，1 = 头已经压到肩膀上
+            person.PostureScore = Math.Clamp((drop - options.HeadDownThreshold) / 0.45 + 0.25, 0, 1);
             return;
         }
 
@@ -276,11 +380,13 @@ public sealed class PoseDetector : IDisposable
 
             person.HeadDown = ratio < 1.25f;
             person.HeadJudgeable = true;
+            person.PostureScore = Math.Clamp((1.45f - ratio) / 0.6f, 0, 1);
         }
         else
         {
             person.HeadDown = false;
             person.HeadJudgeable = false;
+            person.PostureScore = 0.3;
         }
     }
 
@@ -303,7 +409,7 @@ public sealed class PoseDetector : IDisposable
     /// 睁眼时虹膜是一块明显暗区，闭眼时基本是均匀肤色。
     /// 看不清（脸太小、被挡、过曝）就标记为不可判，不能当作闭眼。
     /// </summary>
-    private void EvaluateEyes(Mat gray, PosePerson person, double threshold)
+    private void EvaluateEyes(Mat gray, PosePerson person, PoseOptions options)
     {
         var k = person.Kpts;
         if (k.Length < 17) return;
@@ -311,10 +417,15 @@ public sealed class PoseDetector : IDisposable
         var hasLeft = k[1].Score > ConfOk;
         var hasRight = k[2].Score > ConfOk;
 
+        if (!options.SingleEyeMode && !(hasLeft && hasRight)) return;
         if (!hasLeft && !hasRight) return;
 
         // 脸太小，眼部只有几个像素，测出来的全是噪声
         if (person.Box.Width < 26) return;
+
+        // 后排目标：眼睛根本不够像素，与其把所有人判成"判断不了"，
+        // 不如干脆不用眼部信号，让姿态和静置时长说了算
+        if (options.TrustPostureOverEyes && person.Box.Width < 42) return;
 
         // 用双眼间距当尺度基准，比用脸框宽度稳
         float scaleRef;
@@ -345,7 +456,7 @@ public sealed class PoseDetector : IDisposable
 
         person.EyeScore = best;
         person.EyesJudgeable = true;
-        person.EyesOpen = best > threshold;
+        person.EyesOpen = best > options.EyeThreshold;
     }
 
     private double EyeOpenScore(Mat gray, float eyeX, float eyeY, int radius)
@@ -374,7 +485,7 @@ public sealed class PoseDetector : IDisposable
             if (total > _eyePixels.Length) return -1;
 
             var buffer = _eyePixels;
-            Marshal.Copy(_eye.Data, buffer, 0, total);
+            System.Runtime.InteropServices.Marshal.Copy(_eye.Data, buffer, 0, total);
 
             double sum = 0;
             for (var i = 0; i < total; i++) sum += buffer[i];

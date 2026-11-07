@@ -66,6 +66,17 @@ public class Plugin : PluginBase
         // 课后总结的调度器要在服务注册之后挂上：它监听下课铃，负责结账和弹窗
         SummaryHost.Attach();
 
+        // 日志级别尽早生效：引擎启动前的初始化问题也要能落到文件里
+        try
+        {
+            AppLog.Configure(SettingsStore.Load().LogLevel);
+            AppLog.Info($"SleepWatch 加载完成，配置目录 {ConfigFolder}");
+        }
+        catch
+        {
+            // 配置读不出来就维持默认级别
+        }
+
         services.AddSingleton<DetectionEngine>();
         services.AddSettingsPage<SleepWatchSettingsPage>();
         services.AddComponent<SleepMonitorComponent, SleepMonitorComponentSettingsControl>();

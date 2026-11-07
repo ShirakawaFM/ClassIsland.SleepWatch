@@ -46,6 +46,12 @@ public sealed class SleepCurveChart : Control
     private IBrush[] _barBody = Array.Empty<IBrush>();
     private Pen? _linePen;
     private Pen? _peakPen;
+    private Pen? _ratePen;
+
+    /// <summary>抬头率折线（0~100）。全是 0 说明这批数据没有采样到，就不画。</summary>
+    private double[] _rates = Array.Empty<double>();
+    private bool _hasRates;
+    private FormattedText? _rateLabel;
 
     // 柱子顶端和"长完了没有"每帧重算，数组换成复用的，省掉入场那 0.7 秒里的 GC
     private Point[] _tops = Array.Empty<Point>();
@@ -120,6 +126,21 @@ public sealed class SleepCurveChart : Control
 
         _linePen = new Pen(_accentBrush, 1.35);
         _peakPen = new Pen(_accentBrush, 1, new DashStyle(new double[] { 2, 3 }, 0));
+
+        // 抬头率用一条细虚线画在次坐标轴上（0~100%），跟人数柱子互不干扰
+        _ratePen = new Pen(new SolidColorBrush(_text, 0.45), 1,
+            new DashStyle(new double[] { 3, 3 }, 0));
+
+        _rates = new double[_points.Count];
+        _hasRates = false;
+
+        for (var i = 0; i < _points.Count; i++)
+        {
+            _rates[i] = Math.Clamp(_points[i].HeadUpRate, 0, 100);
+            if (_rates[i] > 0) _hasRates = true;
+        }
+
+        _rateLabel = _hasRates ? Make("虚线 = 抬头率", 10, _label) : null;
 
         var axis = new FormattedText[_steps + 1];
         for (var i = 0; i <= _steps; i++)
@@ -233,6 +254,44 @@ public sealed class SleepCurveChart : Control
             {
                 context.FillRectangle(_accentBrush,
                     new Rect(topPoints[i].X - 1.5, topPoints[i].Y - 1.5, 3, 3));
+            }
+        }
+
+        // ---- 抬头率：次坐标轴上的细虚线，跟着柱子一起往右铺 ----
+        if (_hasRates && _ratePen != null && ready > 1)
+        {
+            var rateGeometry = new StreamGeometry();
+
+            using (var ctx = rateGeometry.Open())
+            {
+                var started = false;
+
+                for (var i = 0; i < ready; i++)
+                {
+                    if (_rates[i] <= 0) continue;
+
+                    var x = plot.X + slot * i + slot / 2;
+                    var y = plot.Bottom - plot.Height * (_rates[i] / 100.0);
+
+                    if (!started)
+                    {
+                        ctx.BeginFigure(new Point(x, y), false);
+                        started = true;
+                    }
+                    else
+                    {
+                        ctx.LineTo(new Point(x, y));
+                    }
+                }
+
+                if (started) ctx.EndFigure(false);
+            }
+
+            context.DrawGeometry(null, _ratePen, rateGeometry);
+
+            if (_rateLabel != null && _progress > 0.9)
+            {
+                context.DrawText(_rateLabel, new Point(plot.Right - _rateLabel.Width, plot.Y + 1));
             }
         }
 

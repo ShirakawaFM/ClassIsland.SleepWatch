@@ -252,6 +252,34 @@ public static class FunFactWriter
             list.Add($"上课第一分钟就有人趴下了，可能上一节就没睡够。");
         }
 
+        // ---------- 23~25. 抬头率 ----------
+        var rates = lesson.Curve.Where(p => p.Present > 0).ToList();
+
+        if (rates.Count >= 3)
+        {
+            var avgRate = rates.Average(p => p.HeadUpRate);
+            list.Add($"这节课平均抬头率 {avgRate:0}%，也就是平均每一百次扫过去有 {Math.Round(avgRate):0} 个人是抬着头的。");
+
+            var low = rates.OrderBy(p => p.HeadUpRate).First();
+            if (low.HeadUpRate < avgRate - 10)
+            {
+                list.Add($"抬头率最低掉到 {low.HeadUpRate:0}%，出现在 {At(low.OffsetSeconds)}。");
+            }
+
+            var half = rates.Count / 2;
+            var front = rates.Take(half).Average(p => p.HeadUpRate);
+            var back = rates.Skip(half).Average(p => p.HeadUpRate);
+
+            if (front - back >= 8)
+            {
+                list.Add($"后半段抬头率比前半段掉了 {front - back:0} 个百分点，越到后面越抬不起头。");
+            }
+            else if (back - front >= 8)
+            {
+                list.Add($"后半段抬头率反而涨了 {back - front:0} 个百分点，大概是讲到有意思的地方了。");
+            }
+        }
+
         return list
             .Distinct()
             .Take(max)

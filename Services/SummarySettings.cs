@@ -66,6 +66,12 @@ public class SummarySettings
     public bool ShowFacts { get; set; } = true;
     public bool ShowPeak { get; set; } = true;
 
+    /// <summary>课后总结展示抬头率。</summary>
+    public bool ShowHeadUpRate { get; set; } = true;
+
+    /// <summary>课后总结里显示证据快照。关掉就只看数据。</summary>
+    public bool ShowSnapshots { get; set; } = true;
+
     // ---------- 外观 ----------
     public string Background { get; set; } = "#F7F4EC";
     public string Surface { get; set; } = "#FFFCF6";

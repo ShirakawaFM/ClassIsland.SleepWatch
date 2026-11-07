@@ -1,11 +1,16 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 
 using ClassIsland.Core.Abstractions.Controls;
@@ -66,6 +71,51 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
     private Button _previewSampleButton = null!;
     private Button _previewRerollButton = null!;
 
+    // ---- 1.5.0 新增 ----
+    private ComboBox _cameraCombo = null!;
+    private Button _cameraRefreshButton = null!;
+    private TextBlock _cameraHint = null!;
+    private TextBlock _classSizeHint = null!;
+
+    private Slider _confirmSlider = null!;
+    private Slider _postureSlider = null!;
+    private Slider _occlusionSlider = null!;
+    private Slider _cacheSlider = null!;
+    private Slider _podiumSlider = null!;
+    private TextBlock _confirmValue = null!;
+    private TextBlock _postureValue = null!;
+    private TextBlock _occlusionValue = null!;
+    private TextBlock _cacheValue = null!;
+    private TextBlock _podiumValue = null!;
+
+    private CheckBox _legacyPostureBox = null!;
+    private CheckBox _excludeTeacherBox = null!;
+    private CheckBox _singleEyeBox = null!;
+    private CheckBox _trustPostureBox = null!;
+    private CheckBox _chunkBox = null!;
+    private CheckBox _micThrottleBox = null!;
+
+    private ComboBox _presetCombo = null!;
+    private TextBlock _presetNote = null!;
+
+    private CheckBox _snapshotBox = null!;
+    private TextBox _snapshotFolderBox = null!;
+    private Button _snapshotPickButton = null!;
+    private Button _snapshotOpenButton = null!;
+    private Slider _snapshotDaysSlider = null!;
+    private Slider _snapshotQualitySlider = null!;
+    private TextBlock _snapshotDaysValue = null!;
+    private TextBlock _snapshotQualityValue = null!;
+    private TextBlock _snapshotUsageText = null!;
+
+    private WrapPanel _subjectPanel = null!;
+
+    private ComboBox _logLevelCombo = null!;
+    private Button _logFolderButton = null!;
+
+    /// <summary>摄像头扫描是同步阻塞的（要逐个试开设备），跑的时候别让用户连点。</summary>
+    private bool _scanning;
+
     private readonly DispatcherTimer _timer;
     private readonly DispatcherTimer _saveTimer;
     private readonly DispatcherTimer _previewTimer;
@@ -79,6 +129,7 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         InitializeComponent();
 
         BindControls();
+        FillCombos();
         LoadValues();
         WireEvents();
         FillAbout();
@@ -174,6 +225,47 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         _previewLiveButton = this.FindControl<Button>("PreviewLiveButton")!;
         _previewSampleButton = this.FindControl<Button>("PreviewSampleButton")!;
         _previewRerollButton = this.FindControl<Button>("PreviewRerollButton")!;
+
+        _cameraCombo = this.FindControl<ComboBox>("CameraCombo")!;
+        _cameraRefreshButton = this.FindControl<Button>("CameraRefreshButton")!;
+        _cameraHint = this.FindControl<TextBlock>("CameraHint")!;
+        _classSizeHint = this.FindControl<TextBlock>("ClassSizeHint")!;
+
+        _confirmSlider = this.FindControl<Slider>("ConfirmSlider")!;
+        _postureSlider = this.FindControl<Slider>("PostureSlider")!;
+        _occlusionSlider = this.FindControl<Slider>("OcclusionSlider")!;
+        _cacheSlider = this.FindControl<Slider>("CacheSlider")!;
+        _podiumSlider = this.FindControl<Slider>("PodiumSlider")!;
+        _confirmValue = this.FindControl<TextBlock>("ConfirmValue")!;
+        _postureValue = this.FindControl<TextBlock>("PostureValue")!;
+        _occlusionValue = this.FindControl<TextBlock>("OcclusionValue")!;
+        _cacheValue = this.FindControl<TextBlock>("CacheValue")!;
+        _podiumValue = this.FindControl<TextBlock>("PodiumValue")!;
+
+        _legacyPostureBox = this.FindControl<CheckBox>("LegacyPostureBox")!;
+        _excludeTeacherBox = this.FindControl<CheckBox>("ExcludeTeacherBox")!;
+        _singleEyeBox = this.FindControl<CheckBox>("SingleEyeBox")!;
+        _trustPostureBox = this.FindControl<CheckBox>("TrustPostureBox")!;
+        _chunkBox = this.FindControl<CheckBox>("ChunkBox")!;
+        _micThrottleBox = this.FindControl<CheckBox>("MicThrottleBox")!;
+
+        _presetCombo = this.FindControl<ComboBox>("PresetCombo")!;
+        _presetNote = this.FindControl<TextBlock>("PresetNote")!;
+
+        _snapshotBox = this.FindControl<CheckBox>("SnapshotBox")!;
+        _snapshotFolderBox = this.FindControl<TextBox>("SnapshotFolderBox")!;
+        _snapshotPickButton = this.FindControl<Button>("SnapshotPickButton")!;
+        _snapshotOpenButton = this.FindControl<Button>("SnapshotOpenButton")!;
+        _snapshotDaysSlider = this.FindControl<Slider>("SnapshotDaysSlider")!;
+        _snapshotQualitySlider = this.FindControl<Slider>("SnapshotQualitySlider")!;
+        _snapshotDaysValue = this.FindControl<TextBlock>("SnapshotDaysValue")!;
+        _snapshotQualityValue = this.FindControl<TextBlock>("SnapshotQualityValue")!;
+        _snapshotUsageText = this.FindControl<TextBlock>("SnapshotUsageText")!;
+
+        _subjectPanel = this.FindControl<WrapPanel>("SubjectPanel")!;
+
+        _logLevelCombo = this.FindControl<ComboBox>("LogLevelCombo")!;
+        _logFolderButton = this.FindControl<Button>("LogFolderButton")!;
     }
 
     private void LoadValues()
@@ -191,6 +283,33 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         _eyeSlider.Value = Clamp(_eyeSlider, s.EyeDarkRatio);
         _autoStartBox.IsChecked = s.AutoStartOnClass;
         _autoStopBox.IsChecked = s.AutoStopOnBreak;
+
+        // ---- 1.5.0 ----
+        _confirmSlider.Value = Clamp(_confirmSlider, s.ConfirmSeconds);
+        _postureSlider.Value = Clamp(_postureSlider, s.PostureWeight);
+        _occlusionSlider.Value = Clamp(_occlusionSlider, s.OcclusionSeconds);
+        _cacheSlider.Value = Clamp(_cacheSlider, s.MatchCacheSeconds);
+        _podiumSlider.Value = Clamp(_podiumSlider, s.PodiumRatio * 100);
+
+        _legacyPostureBox.IsChecked = s.LegacyPostureMode;
+        _excludeTeacherBox.IsChecked = s.ExcludeTeacher;
+        _singleEyeBox.IsChecked = s.SingleEyeMode;
+        _trustPostureBox.IsChecked = s.TrustPostureOverEyes;
+        _chunkBox.IsChecked = s.ChunkedInference;
+        _micThrottleBox.IsChecked = s.MicThrottle;
+
+        _presetCombo.SelectedIndex = Math.Clamp(s.Preset, 0, DetectionPresets.All.Count - 1);
+        UpdatePresetNote();
+
+        _snapshotBox.IsChecked = s.SnapshotEnabled;
+        _snapshotFolderBox.Text = s.SnapshotFolder ?? "";
+        _snapshotDaysSlider.Value = Clamp(_snapshotDaysSlider, s.SnapshotKeepDays);
+        _snapshotQualitySlider.Value = Clamp(_snapshotQualitySlider, s.SnapshotQuality);
+
+        _logLevelCombo.SelectedIndex = LogLevelIndex(s.LogLevel);
+
+        FillSubjects(s);
+        UpdateSnapshotUsage(s);
 
         try
         {
@@ -226,6 +345,17 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         _presenceValue.Text = ((int)Math.Round(_presenceSlider.Value)).ToString();
         _eyeValue.Text = _eyeSlider.Value.ToString("0.00");
 
+        _confirmValue.Text = ((int)Math.Round(_confirmSlider.Value)).ToString();
+        _postureValue.Text = _postureSlider.Value.ToString("0.00");
+        _occlusionValue.Text = ((int)Math.Round(_occlusionSlider.Value)).ToString();
+        _cacheValue.Text = ((int)Math.Round(_cacheSlider.Value)).ToString();
+        _podiumValue.Text = ((int)Math.Round(_podiumSlider.Value)).ToString();
+
+        _snapshotDaysValue.Text = ((int)Math.Round(_snapshotDaysSlider.Value)).ToString();
+        _snapshotQualityValue.Text = ((int)Math.Round(_snapshotQualitySlider.Value)).ToString();
+
+        _classSizeHint.Text = _classSizeSlider.Value < 1 ? "人 · 不限上限" : "人";
+
         var delay = (int)Math.Round(_popupDelaySlider.Value);
         _popupDelayValue.Text = delay.ToString();
         _popupDelayHint.Text = delay <= 0 ? "秒。0 就是下课立刻弹" : "秒后才弹出总结窗";
@@ -254,9 +384,86 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         WatchSlider(_sleepSlider);
         WatchSlider(_presenceSlider);
         WatchSlider(_eyeSlider);
+        WatchSlider(_confirmSlider);
+        WatchSlider(_postureSlider);
+        WatchSlider(_occlusionSlider);
+        WatchSlider(_cacheSlider);
+        WatchSlider(_podiumSlider);
+        WatchSlider(_snapshotDaysSlider);
+        WatchSlider(_snapshotQualitySlider);
 
         _autoStartBox.Click += (_, _) => Commit();
         _autoStopBox.Click += (_, _) => Commit();
+
+        _legacyPostureBox.Click += (_, _) => Commit();
+        _excludeTeacherBox.Click += (_, _) => Commit();
+        _singleEyeBox.Click += (_, _) => Commit();
+        _trustPostureBox.Click += (_, _) => Commit();
+        _chunkBox.Click += (_, _) => Commit();
+        _micThrottleBox.Click += (_, _) => Commit();
+
+        _snapshotBox.Click += (_, _) =>
+        {
+            Commit();
+            UpdateSnapshotUsage();
+        };
+
+        _snapshotFolderBox.LostFocus += (_, _) =>
+        {
+            Commit();
+            UpdateSnapshotUsage();
+        };
+
+        _snapshotPickButton.Click += (_, _) => PickSnapshotFolder();
+        _snapshotOpenButton.Click += (_, _) => OpenSnapshotFolder();
+
+        _presetCombo.SelectionChanged += (_, _) =>
+        {
+            if (_loading) return;
+
+            // 套预设会改好几个阈值，套完重新灌一遍界面，免得滑动条还停在老位置
+            var s = SettingsStore.Load();
+            DetectionPresets.ApplyTo(s, Math.Max(0, _presetCombo.SelectedIndex));
+            SettingsStore.Save(s);
+
+            _loading = true;
+            try
+            {
+                LoadValues();
+            }
+            finally
+            {
+                _loading = false;
+            }
+
+            _statusText.Text = $"已套用「{DetectionPresets.Get(s.Preset).Name}」机位预设，点【重启监测】生效。";
+        };
+
+        _logLevelCombo.SelectionChanged += (_, _) =>
+        {
+            if (_loading) return;
+
+            var level = LogLevelFromIndex(_logLevelCombo.SelectedIndex);
+            AppLog.Configure(level);
+            Commit();
+            _statusText.Text = $"日志级别已改成「{level}」，立刻生效。";
+        };
+
+        _logFolderButton.Click += (_, _) => OpenLogFolder();
+
+        _cameraRefreshButton.Click += (_, _) => _ = ScanCameras();
+
+        _cameraCombo.SelectionChanged += (_, _) =>
+        {
+            if (_loading) return;
+
+            if (_cameraCombo.SelectedItem is CameraDevice device && device.Index >= 0)
+            {
+                _sourceBox.Text = device.Index.ToString();
+                Commit();
+                _cameraHint.Text = $"已选「{device.Name}」，视频源填成 {device.Index}。点【重启监测】生效。";
+            }
+        };
 
         _silentBox.Click += (_, _) => CommitSilent();
 
@@ -304,6 +511,272 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         _folderButton.Click += (_, _) => OpenFolder();
         _repoButton.Click += (_, _) => OpenUrl(Plugin.RepoUrl);
         _licenseButton.Click += (_, _) => OpenUrl(Plugin.RepoUrl + "/blob/main/LICENSE");
+    }
+
+    // ---------- 1.5.0 新增的几块小逻辑 ----------
+
+    /// <summary>下拉框的候选值只在构造时灌一次，之后只改 SelectedIndex。</summary>
+    private void FillCombos()
+    {
+        foreach (var preset in DetectionPresets.All)
+        {
+            _presetCombo.Items.Add(new ComboBoxItem { Content = preset.Name });
+        }
+
+        foreach (var name in new[] { "仅错误", "警告 + 错误", "常规", "调试" })
+        {
+            _logLevelCombo.Items.Add(new ComboBoxItem { Content = name });
+        }
+    }
+
+    /// <summary>配置里存的是名字，界面上换成下标，两边对不上就落回「常规」。</summary>
+    private static int LogLevelIndex(string? name)
+        => name?.Trim().ToLowerInvariant() switch
+        {
+            "error" => 0,
+            "warn" => 1,
+            "debug" => 3,
+            _ => 2
+        };
+
+    private static string LogLevelFromIndex(int index) => index switch
+    {
+        0 => "Error",
+        1 => "Warn",
+        3 => "Debug",
+        _ => "Info"
+    };
+
+    private void UpdatePresetNote()
+    {
+        var index = Math.Max(0, _presetCombo.SelectedIndex);
+        _presetNote.Text = DetectionPresets.Get(index).Note;
+    }
+
+    /// <summary>
+    /// 课程勾选。候选来自今天的课表（拿不到就把配置里勾过的也列出来），
+    /// 一个都不勾等于全选，跟 <see cref="DetectionSettings.SubjectAllowed"/> 的判定一致。
+    /// </summary>
+    private void FillSubjects(DetectionSettings settings)
+    {
+        _subjectPanel.Children.Clear();
+
+        var names = new List<string>();
+
+        try
+        {
+            TimetableSync.Refresh();
+            var today = TimetableSync.Today;
+            if (today != null)
+            {
+                foreach (var block in today.Blocks)
+                {
+                    if (!block.IsClass) continue;
+                    if (string.IsNullOrWhiteSpace(block.Label)) continue;
+                    if (!names.Contains(block.Label)) names.Add(block.Label);
+                }
+            }
+        }
+        catch
+        {
+            // 课表读不到就只列配置里的
+        }
+
+        foreach (var subject in settings.EnabledSubjects ?? new List<string>())
+        {
+            if (!string.IsNullOrWhiteSpace(subject) && !names.Contains(subject)) names.Add(subject);
+        }
+
+        if (names.Count == 0)
+        {
+            _subjectPanel.Children.Add(new TextBlock
+            {
+                Text = "还没读到课表，科目名取不到。先在上面的课表同步里同步一次。",
+                FontSize = 12,
+                Opacity = 0.55,
+                TextWrapping = TextWrapping.Wrap
+            });
+            return;
+        }
+
+        foreach (var name in names)
+        {
+            _subjectPanel.Children.Add(new CheckBox
+            {
+                Content = name,
+                IsChecked = (settings.EnabledSubjects ?? new List<string>()).Contains(name),
+                Margin = new Thickness(0, 0, 14, 4)
+            });
+        }
+    }
+
+    /// <summary>把界面上勾到的科目收成列表。放在 Commit 里，勾一下就保存。</summary>
+    private List<string> CollectSubjects()
+    {
+        var result = new List<string>();
+
+        foreach (var child in _subjectPanel.Children)
+        {
+            if (child is CheckBox box && box.IsChecked == true && box.Content is string name)
+            {
+                if (!string.IsNullOrWhiteSpace(name)) result.Add(name);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>快照占了多少盘。目录没建过就显示「还没开始存」。</summary>
+    private void UpdateSnapshotUsage()
+    {
+        try
+        {
+            UpdateSnapshotUsage(SettingsStore.Load());
+        }
+        catch
+        {
+            _snapshotUsageText.Text = "占用：—";
+        }
+    }
+
+    private void UpdateSnapshotUsage(DetectionSettings settings)
+    {
+        try
+        {
+            var usage = SnapshotService.Usage(settings);
+            var root = SnapshotPaths.Root(settings);
+
+            _snapshotUsageText.Text = usage.Files == 0
+                ? $"占用：还没存过快照（{root}）"
+                : $"占用：{usage.Files} 张 / {usage.Bytes / 1024.0 / 1024.0:0.0} MB（{root}）";
+        }
+        catch
+        {
+            _snapshotUsageText.Text = "占用：—";
+        }
+    }
+
+    private void PickSnapshotFolder()
+    {
+        _ = PickSnapshotFolderAsync();
+    }
+
+    private async Task PickSnapshotFolderAsync()
+    {
+        try
+        {
+            var top = TopLevel.GetTopLevel(this);
+            if (top?.StorageProvider == null) return;
+
+            var folders = await top.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "选一个存放证据快照的目录",
+                AllowMultiple = false
+            });
+
+            if (folders.Count == 0) return;
+
+            var path = folders[0].TryGetLocalPath();
+            if (string.IsNullOrWhiteSpace(path)) return;
+
+            _snapshotFolderBox.Text = path;
+            Commit();
+            UpdateSnapshotUsage();
+
+            _statusText.Text = "快照目录已改到 " + path;
+        }
+        catch (Exception ex)
+        {
+            _statusText.Text = "选目录失败：" + ex.Message;
+        }
+    }
+
+    private void OpenSnapshotFolder()
+    {
+        try
+        {
+            var root = SnapshotPaths.Root(SettingsStore.Load());
+            Directory.CreateDirectory(root);
+            OpenInExplorer(root);
+        }
+        catch (Exception ex)
+        {
+            _statusText.Text = "打不开快照目录：" + ex.Message;
+        }
+    }
+
+    private void OpenLogFolder()
+    {
+        try
+        {
+            var dir = Path.Combine(Plugin.ConfigFolder, "logs");
+            Directory.CreateDirectory(dir);
+            OpenInExplorer(dir);
+        }
+        catch (Exception ex)
+        {
+            _statusText.Text = "打不开日志目录：" + ex.Message;
+        }
+    }
+
+    private static void OpenInExplorer(string path)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"\"{path}\"",
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // 打不开就算了
+        }
+    }
+
+    /// <summary>
+    /// 扫摄像头。逐个试开会占用几百毫秒到一秒，所以扔到后台线程；
+    /// 扫的过程中把按钮禁掉，避免连点开出一堆 VideoCapture。
+    /// </summary>
+    private async Task ScanCameras()
+    {
+        if (_scanning) return;
+
+        _scanning = true;
+        _cameraRefreshButton.IsEnabled = false;
+        _cameraHint.Text = "正在逐个试开设备，可能要一两秒…";
+
+        try
+        {
+            var source = (_sourceBox.Text ?? "0").Trim();
+            var devices = await Task.Run(() => CameraEnumerator.Scan(source));
+
+            _cameraCombo.Items.Clear();
+
+            foreach (var device in devices)
+            {
+                _cameraCombo.Items.Add(device);
+            }
+
+            var current = int.TryParse(source, out var idx) ? idx : -1;
+            var hit = devices.FirstOrDefault(d => d.Index == current);
+
+            if (hit != null) _cameraCombo.SelectedItem = hit;
+
+            _cameraHint.Text = CameraEnumerator.Describe(devices) +
+                               "。挑一个会自动填进下面的视频源。若当前设备正被本插件使用，会显示“占用中”，属正常。";
+        }
+        catch (Exception ex)
+        {
+            _cameraHint.Text = "扫描失败：" + ex.Message;
+        }
+        finally
+        {
+            _scanning = false;
+            _cameraRefreshButton.IsEnabled = true;
+        }
     }
 
     /// <summary>版本号从程序集读，避免改版本时忘了同步界面。</summary>
@@ -356,6 +829,29 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         s.EyeDarkRatio = Math.Round(_eyeSlider.Value, 2);
         s.AutoStartOnClass = _autoStartBox.IsChecked == true;
         s.AutoStopOnBreak = _autoStopBox.IsChecked == true;
+
+        // ---- 1.5.0 ----
+        s.ConfirmSeconds = Math.Round(_confirmSlider.Value);
+        s.PostureWeight = Math.Round(_postureSlider.Value, 2);
+        s.OcclusionSeconds = Math.Round(_occlusionSlider.Value);
+        s.MatchCacheSeconds = Math.Round(_cacheSlider.Value);
+        s.PodiumRatio = Math.Round(_podiumSlider.Value / 100.0, 3);
+
+        s.LegacyPostureMode = _legacyPostureBox.IsChecked == true;
+        s.ExcludeTeacher = _excludeTeacherBox.IsChecked == true;
+        s.SingleEyeMode = _singleEyeBox.IsChecked == true;
+        s.TrustPostureOverEyes = _trustPostureBox.IsChecked == true;
+        s.ChunkedInference = _chunkBox.IsChecked == true;
+        s.MicThrottle = _micThrottleBox.IsChecked == true;
+
+        s.SnapshotEnabled = _snapshotBox.IsChecked == true;
+        s.SnapshotFolder = (_snapshotFolderBox.Text ?? "").Trim();
+        s.SnapshotKeepDays = (int)Math.Round(_snapshotDaysSlider.Value);
+        s.SnapshotQuality = (int)Math.Round(_snapshotQualitySlider.Value);
+
+        s.LogLevel = LogLevelFromIndex(_logLevelCombo.SelectedIndex);
+
+        s.EnabledSubjects = CollectSubjects();
 
         SettingsStore.Save(s);
 
@@ -601,8 +1097,10 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
 
         var s = engine.Snapshot;
         _previewInfo.Text =
-            $"在座 {s.Present}　清醒 {s.Awake}　疑似睡着 {s.Sleeping}　判断不了 {s.Unknown}　未观测 {s.Unobserved}" +
-            $"　|　{s.Fps:0.0} FPS";
+            $"在座 {s.Present}　清醒 {s.Awake}　疑似 {s.Doubtful}　确认沉睡 {s.Sleeping}　判断不了 {s.Unknown}" +
+            $"　老师 {s.Excluded}　未观测 {s.Unobserved}" +
+            $"　|　抬头率 {s.HeadUpRate * 100:0}%　{s.Fps:0.0} FPS" +
+            (s.Throttled ? "　|　麦克风占用，降频中" : "");
     }
 
     private void ShowPreviewPlaceholder(string text)
@@ -681,8 +1179,11 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
 
         _statusText.Text =
             $"{head}\n" +
-            $"找到 {s.Present} 人 · 清醒 {s.Awake} · 疑似睡着 {s.Sleeping} · 判断不了 {s.Unknown} · 未观测 {s.Unobserved} · 应到 {s.ClassSize}\n" +
-            $"{s.Fps:0.0} FPS · 模型 {ModelManager.Describe()}";
+            $"找到 {s.Present} 人 · 清醒 {s.Awake} · 疑似 {s.Doubtful} · 确认沉睡 {s.Sleeping} · " +
+            $"判断不了 {s.Unknown} · 老师 {s.Excluded} · 超出人数被丢弃 {s.Filtered} · 未观测 {s.Unobserved} · 应到 {s.ClassSize}\n" +
+            $"抬头率 {(s.HeadUpRate * 100):0}% · {s.Fps:0.0} FPS" +
+            (s.Throttled ? " · 麦克风被占用，已降频" : "") +
+            $" · 模型 {ModelManager.Describe()}";
     }
 
     private void OpenFolder()

@@ -153,7 +153,7 @@
                         </StackPanel>
 
                         <!-- 右：曲线卡（入场时从零长起来） -->
-                        <Grid x:Name="RightCol" Grid.Column="1" RowDefinitions="Auto,Auto" VerticalAlignment="Bottom">
+                        <Grid x:Name="RightCol" Grid.Column="1" RowDefinitions="Auto,Auto,Auto" VerticalAlignment="Bottom">
                             <Border x:Name="ChartCard" CornerRadius="16" BorderThickness="1"
                                     BorderBrush="#22808080" Padding="12,10">
                                 <Grid RowDefinitions="Auto,*">
@@ -163,7 +163,7 @@
                                             <TextBlock x:Name="PeakBadge" Text="峰值 0 人" FontSize="10.5" />
                                         </Border>
                                     </Grid>
-                                    <ctrl:SleepCurveChart x:Name="Chart" Grid.Row="1" MinHeight="210" />
+                                    <ctrl:SleepCurveChart x:Name="Chart" Grid.Row="1" MinHeight="196" />
                                 </Grid>
                             </Border>
 
@@ -177,6 +177,29 @@
                                                    Opacity="0.4" FontFamily="Consolas, monospace" />
                                     </Grid>
                                     <StackPanel x:Name="FactsPanel" Spacing="5" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 证据快照：默认折叠，点一下才展开缩略图 -->
+                            <Border x:Name="SnapshotsHost" Grid.Row="2" CornerRadius="16" BorderThickness="1"
+                                    BorderBrush="#22808080" Padding="14,9" Margin="0,10,0,0" IsVisible="False">
+                                <StackPanel Spacing="7">
+                                    <Button x:Name="SnapshotToggle" Background="Transparent" BorderThickness="0"
+                                            Padding="0" HorizontalAlignment="Stretch" Cursor="Hand">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock x:Name="SnapshotTitle" Text="证据快照" FontSize="11.5"
+                                                       FontWeight="SemiBold" Opacity="0.75" />
+                                            <TextBlock x:Name="SnapshotHint" Grid.Column="1" Text="点开看 ›"
+                                                       FontSize="10.5" Opacity="0.45"
+                                                       FontFamily="Consolas, monospace" />
+                                        </Grid>
+                                    </Button>
+                                    <!-- 一排缩略图，横向滚。不做多行：卡片长高会把下面那块挤出窗口 -->
+                                    <ScrollViewer x:Name="SnapshotScroller" IsVisible="False"
+                                                  MaxHeight="96" HorizontalScrollBarVisibility="Auto"
+                                                  VerticalScrollBarVisibility="Disabled">
+                                        <WrapPanel x:Name="SnapshotPanel" />
+                                    </ScrollViewer>
                                 </StackPanel>
                             </Border>
                         </Grid>
@@ -211,7 +234,7 @@
 
                             <StackPanel Spacing="2">
                                 <TextBlock Text="显示哪些内容" FontSize="11.5" FontWeight="SemiBold" Opacity="0.55" />
-                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
                                     <CheckBox x:Name="CbTotal" Content="睡觉总人数" />
                                     <CheckBox x:Name="CbCurve" Grid.Column="1" Content="人数变化曲线" />
                                     <CheckBox x:Name="CbRepeat" Grid.Row="1" Content="入睡次数" />
@@ -219,6 +242,8 @@
                                     <CheckBox x:Name="CbLongest" Grid.Row="2" Content="最长单次睡眠" />
                                     <CheckBox x:Name="CbPeak" Grid.Row="2" Grid.Column="1" Content="同时最多" />
                                     <CheckBox x:Name="CbFacts" Grid.Row="3" Content="趣味记录条目" />
+                                    <CheckBox x:Name="CbHeadUp" Grid.Row="3" Grid.Column="1" Content="抬头率" />
+                                    <CheckBox x:Name="CbSnapshots" Grid.Row="4" Content="证据快照" />
                                 </Grid>
                             </StackPanel>
 

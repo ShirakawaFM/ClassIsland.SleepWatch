@@ -10,15 +10,16 @@ namespace ClassIsland.SleepWatch.Services;
 // ============================================================================
 // 静默检测的账本。
 //
-// 检测线程每帧都会把"谁在睡 / 谁醒了"喂进来，这里把它记成一段一段的睡眠事件。
+// 检测线程每帧都会把"谁确认睡着了 / 谁醒了"喂进来，这里把它记成一段一段的睡眠事件。
 // 全程不弹任何东西、不改主界面，就是安静地记账 —— 下课铃一响，账本交给课后总结。
+//
+// 1.5 起每节课有独立的课程 ID，事件和曲线点都绑在这个 ID 上，
+// 课后总结按 ID 精确查询，不会再把两节课的数据搅在一起。
 //
 // 所有写入都走 _gate：采样在检测线程，结算在 UI 线程，两边都会碰这几个集合。
 // ============================================================================
 
-/// <summary>
-/// 账本本体。单例，检测线程和 UI 线程都会碰，内部全部加锁。
-/// </summary>
+/// <summary>账本本体。单例，检测线程和 UI 线程都会碰，内部全部加锁。</summary>
 public sealed class SleepLedger
 {
     public static SleepLedger Instance { get; } = new();
@@ -50,6 +51,15 @@ public sealed class SleepLedger
     /// <summary>刚结束的那节课。课后总结优先用它。</summary>
     public LessonRecord? LastFinished { get; private set; }
 
+    /// <summary>当前正在记的那节课（课间为 null）。</summary>
+    public LessonRecord? Current
+    {
+        get
+        {
+            lock (_gate) return _current;
+        }
+    }
+
     // ---------------- 生命周期 ----------------
 
     private void EnsureLoaded()
@@ -63,7 +73,7 @@ public sealed class SleepLedger
     /// 上课：开一个新的记录段。
     /// <paramref name="index"/> 由课表给（第几节），传 0 就按当天的顺序自己编号。
     /// </summary>
-    public void BeginLesson(DateTime now, int classSize, int index = 0, string subject = "")
+    public void BeginLesson(DateTime now, int classSize, int index = 0, string subject = "", bool manual = false)
     {
         lock (_gate)
         {
@@ -79,17 +89,39 @@ public sealed class SleepLedger
 
             _current = new LessonRecord
             {
+                Id = NewLessonId(day, now, index),
                 Start = now,
                 End = now,
                 Index = index,
                 Subject = subject ?? "",
-                ClassSize = classSize
+                ClassSize = classSize,
+                Manual = manual
             };
 
             day.Lessons.Add(_current);
             _open.Clear();
             _lastSample = DateTime.MinValue;
+
+            _dirty = true;
         }
+    }
+
+    /// <summary>课程 ID：日期 + 节次，撞了就加序号。跨天不会重复，同一节重启也不会覆盖旧记录。</summary>
+    private static string NewLessonId(DayRecord day, DateTime now, int index)
+    {
+        var prefix = index > 0
+            ? $"{now:yyyyMMdd}-{index:D2}"
+            : $"{now:yyyyMMdd}-M{now:HHmm}";
+
+        if (day.Lessons.All(l => l.Id != prefix)) return prefix;
+
+        for (var i = 2; i < 100; i++)
+        {
+            var candidate = $"{prefix}-{i}";
+            if (day.Lessons.All(l => l.Id != candidate)) return candidate;
+        }
+
+        return prefix + "-x";
     }
 
     /// <summary>下课：收尾、落盘，返回这节课的记录。</summary>
@@ -113,9 +145,9 @@ public sealed class SleepLedger
         {
             LessonFinished?.Invoke(finished);
         }
-        catch
+        catch (Exception ex)
         {
-            // 事件里出错不能影响检测线程
+            AppLog.Error("结算回调失败", ex);
         }
 
         return finished;
@@ -127,7 +159,7 @@ public sealed class SleepLedger
 
         foreach (var ep in _open.Values.ToList())
         {
-            ep.End = now;
+            if (ep.End == null) ep.End = now;
         }
 
         _open.Clear();
@@ -145,6 +177,7 @@ public sealed class SleepLedger
 
         _current = new LessonRecord
         {
+            Id = NewLessonId(day, now, index),
             Start = now,
             End = now,
             Index = index,
@@ -159,6 +192,9 @@ public sealed class SleepLedger
 
     /// <summary>
     /// 检测线程每帧都会调这里。只做记账，绝不做 IO（IO 在下课和定时器里做）。
+    ///
+    /// 只有 <see cref="TrackState.Sleeping"/>（确认沉睡）才开新记录；
+    /// 疑似、判断不了、被排除的老师全都不会写入。
     /// </summary>
     public void Observe(TrackingReport report, DateTime now, int classSize)
     {
@@ -188,31 +224,38 @@ public sealed class SleepLedger
 
             _current.End = now;
 
-            // ---- 逐个轨迹推进"睡着 / 醒来" ----
+            // ---- 逐个轨迹推进"确认睡着 / 醒来" ----
             var seen = new HashSet<int>();
 
             foreach (var track in report.Tracks)
             {
                 seen.Add(track.Id);
 
+                if (track.IsTeacher) continue;
+
+                // 确认沉睡 + 最近还看得到人，才算"现在正睡着"
                 var sleeping = track.State == TrackState.Sleeping &&
                                (now - track.LastSeen).TotalSeconds <= 4;
 
                 if (sleeping)
                 {
-                    if (!_open.ContainsKey(track.Id))
-                    {
-                        var ep = new SleepEpisode
-                        {
-                            TrackId = track.Id,
-                            Start = now,
-                            CenterX = track.Box.X + track.Box.Width / 2.0
-                        };
+                    if (_open.ContainsKey(track.Id)) continue;
 
-                        _open[track.Id] = ep;
-                        _current.Episodes.Add(ep);
-                        _dirty = true;
-                    }
+                    var ep = new SleepEpisode
+                    {
+                        TrackId = track.Id,
+                        Start = track.DoubtSince ?? now,
+                        LessonId = _current.Id,
+                        IsConfirmed = true,
+                        CenterX = track.Box.X + track.Box.Width / 2.0,
+                        Confidence = Math.Round(track.SleepConfidence, 3),
+                        PostureScore = Math.Round(track.PostureScore, 3),
+                        OcclusionScore = Math.Round(track.OcclusionScore, 3)
+                    };
+
+                    _open[track.Id] = ep;
+                    _current.Episodes.Add(ep);
+                    _dirty = true;
                 }
                 else if (_open.Remove(track.Id, out var ep))
                 {
@@ -229,7 +272,7 @@ public sealed class SleepLedger
                 var track = report.Tracks.FirstOrDefault(t => t.Id == id);
                 if (track == null || (now - track.LastSeen).TotalSeconds > 4)
                 {
-                    _open[id].End = now;
+                    if (_open[id].End == null) _open[id].End = now;
                     _open.Remove(id);
                     _dirty = true;
                 }
@@ -240,16 +283,36 @@ public sealed class SleepLedger
             {
                 _lastSample = now;
 
-                var point = new CurvePoint
+                _current.Curve.Add(new CurvePoint
                 {
                     OffsetSeconds = (int)Math.Max(0, (now - _current.Start).TotalSeconds),
                     Sleeping = report.Sleeping,
-                    Present = report.Present
-                };
+                    Present = report.Present,
+                    Doubtful = report.Doubtful,
+                    HeadUpRate = Math.Round(report.HeadUpRate * 100, 1)
+                });
 
-                _current.Curve.Add(point);
                 if (report.Sleeping > _current.PeakSleeping) _current.PeakSleeping = report.Sleeping;
+                _dirty = true;
             }
+        }
+    }
+
+    /// <summary>把快照路径补到刚写下的那一段上。检测线程抓完图后调。</summary>
+    public void AttachSnapshot(int trackId, DateTime start, string relativePath)
+    {
+        lock (_gate)
+        {
+            if (_current == null) return;
+
+            var ep = _current.Episodes
+                .OrderByDescending(e => e.Start)
+                .FirstOrDefault(e => e.TrackId == trackId && Math.Abs((e.Start - start).TotalSeconds) < 5);
+
+            if (ep == null) return;
+
+            ep.SnapshotPath = relativePath;
+            _dirty = true;
         }
     }
 
@@ -284,6 +347,27 @@ public sealed class SleepLedger
             }
 
             return result;
+        }
+    }
+
+    /// <summary>按课程 ID 精确取一节课。课后总结用它，杜绝串档。</summary>
+    public LessonRecord? GetLesson(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return null;
+
+        lock (_gate)
+        {
+            EnsureLoaded();
+
+            foreach (var day in _days)
+            {
+                foreach (var lesson in day.Lessons)
+                {
+                    if (lesson.Id == id) return lesson;
+                }
+            }
+
+            return null;
         }
     }
 
@@ -328,11 +412,52 @@ public sealed class SleepLedger
 
             _days.Clear();
             _days.AddRange(days.OrderBy(d => d.Date));
+
+            Migrate();
         }
-        catch
+        catch (Exception ex)
         {
-            // 历史损坏就当没有，不影响上课
+            AppLog.Warn("历史记录读取失败，按空账本继续：" + ex.Message);
         }
+    }
+
+    /// <summary>
+    /// 老数据补齐。1.4 的记录没有课程 ID，也没有确认标记：
+    /// 补成「未分类课程」并当作确认记录，升级后历史照常能看。
+    /// </summary>
+    private void Migrate()
+    {
+        var changed = false;
+
+        foreach (var day in _days)
+        {
+            foreach (var lesson in day.Lessons)
+            {
+                if (string.IsNullOrWhiteSpace(lesson.Id))
+                {
+                    lesson.Id = $"legacy-{day.Date:yyyyMMdd}-{lesson.Index}-{lesson.Start:HHmm}";
+                    changed = true;
+                }
+
+                foreach (var ep in lesson.Episodes)
+                {
+                    if (string.IsNullOrWhiteSpace(ep.LessonId))
+                    {
+                        ep.LessonId = lesson.Id;
+                        changed = true;
+                    }
+
+                    if (!ep.IsConfirmed)
+                    {
+                        // 老版本只会在判定睡着时写入，所以历史记录一律按确认处理
+                        ep.IsConfirmed = true;
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        if (changed) _dirty = true;
     }
 
     private void SaveLocked()
@@ -352,9 +477,9 @@ public sealed class SleepLedger
 
             _dirty = false;
         }
-        catch
+        catch (Exception ex)
         {
-            // 写盘失败不抛，下节课还会再试
+            AppLog.Error("历史记录写入失败", ex);
         }
     }
 
