@@ -686,19 +686,37 @@ public sealed class DetectionEngine : IDisposable
 
     private static void DrawTag(SKCanvas canvas, SKFont font, SKRect box, string text, SKColor color)
     {
-        // 2.88 的 SKFont 只给了 Span 版的 MeasureText，量字符串得借 SKPaint
-        using var measure = new SKPaint { Typeface = font.Typeface, TextSize = font.Size };
-        var bounds = new SKRect();
-        var width = measure.MeasureText(text, ref bounds);
+        // 宽度自己估算，不调 MeasureText：2.88 只认 ReadOnlySpan<ushort>，
+        // 3.x 更认 string，两边没有共同的可测量接口。这里只是给标签垫个底色框，
+        // 差几个像素无所谓，换来的是两个 SkiaSharp 大版本都能跑。
+        var width = EstimateWidth(font, text);
+        var textHeight = font.Size * 1.15f;
 
         var x = box.Left;
-        var y = box.Top - 4 >= bounds.Height ? box.Top - 4 : box.Top + bounds.Height + 4;
+        var y = box.Top - 4 >= textHeight ? box.Top - 4 : box.Top + textHeight + 4;
 
         using var background = new SKPaint { Color = new SKColor(0, 0, 0, 150) };
-        canvas.DrawRect(new SKRect(x - 2, y - bounds.Height, x + width + 4, y + 3), background);
+        canvas.DrawRect(new SKRect(x - 2, y - textHeight, x + width + 4, y + 3), background);
 
         using var fill = new SKPaint { Color = color };
         canvas.DrawText(text, x, y - 2, font, fill);
+    }
+
+    /// <summary>
+    /// 粗估一行字的宽度。中日韩和全角按一个字号宽，其余按 0.55。
+    /// 用途只有「标签底色框别比文字短太多」，不需要精确排版。
+    /// </summary>
+    private static float EstimateWidth(SKFont font, string text)
+    {
+        var em = font.Size;
+        var width = 0f;
+
+        foreach (var ch in text)
+        {
+            width += ch < 0x2E80 ? em * 0.55f : em;
+        }
+
+        return width;
     }
 
     private static void DrawFooter(SKCanvas canvas, SKFont font, int width, int height, int footer, TrackingReport report)

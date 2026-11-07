@@ -71,8 +71,10 @@
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="视频源" Width="110" VerticalAlignment="Center" />
                 <TextBox x:Name="SourceBox" Width="300"
-                         Watermark="0 = 本机摄像头；也可填 rtsp:// 或 http:// 地址" />
+                         ToolTip.Tip="0 = 本机摄像头；也可填 rtsp:// 或 http:// 地址" />
             </StackPanel>
+            <TextBlock Text="填序号（0 = 本机默认摄像头），或者 rtsp:// / http:// 地址。"
+                       FontSize="12" Opacity="0.6" Margin="122,0,0,0" TextWrapping="Wrap" />
 
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="处理帧率" Width="110" VerticalAlignment="Center" />
@@ -204,10 +206,13 @@
             <CheckBox x:Name="SnapshotBox" Content="保存证据快照（默认关；开了才会往本机硬盘写图）" />
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="存放目录" Width="110" VerticalAlignment="Center" />
-                <TextBox x:Name="SnapshotFolderBox" Width="330" Watermark="留空 = 配置目录下的 snapshots" />
+                <TextBox x:Name="SnapshotFolderBox" Width="330"
+                         ToolTip.Tip="留空 = 配置目录下的 snapshots" />
                 <Button x:Name="SnapshotPickButton" Content="选择…" />
                 <Button x:Name="SnapshotOpenButton" Content="打开" />
             </StackPanel>
+            <TextBlock Text="留空就用配置目录下的 snapshots。换个盘符或移动硬盘都行，路径不通会自动退回默认目录。"
+                       FontSize="12" Opacity="0.6" Margin="122,0,0,0" TextWrapping="Wrap" />
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="保留天数" Width="110" VerticalAlignment="Center" />
                 <Slider x:Name="SnapshotDaysSlider" Width="260" VerticalAlignment="Center"

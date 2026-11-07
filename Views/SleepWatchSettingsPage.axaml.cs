@@ -361,6 +361,15 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
         _popupDelayHint.Text = delay <= 0 ? "秒。0 就是下课立刻弹" : "秒后才弹出总结窗";
     }
 
+    /// <summary>输入框用：攒 400ms 再落盘，别每敲一个键就写一次配置。</summary>
+    private void RestartSave()
+    {
+        if (_loading) return;
+
+        _saveTimer.Stop();
+        _saveTimer.Start();
+    }
+
     private void WatchSlider(Slider slider)
     {
         slider.PropertyChanged += (_, e) =>
@@ -376,7 +385,10 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
 
     private void WireEvents()
     {
-        _sourceBox.LostFocus += (_, _) => Commit();
+        // 不用 LostFocus：Avalonia 12 把这个事件的委托类型改了，
+        // 在 11 上编好的绑定拿到 12 的宿主里会 MissingMethodException。
+        // TextChanged + 防抖落盘的效果一样，而且 11 / 12 都能跑。
+        _sourceBox.TextChanged += (_, _) => RestartSave();
 
         WatchSlider(_fpsSlider);
         WatchSlider(_widthSlider);
@@ -408,11 +420,7 @@ public partial class SleepWatchSettingsPage : SettingsPageBase
             UpdateSnapshotUsage();
         };
 
-        _snapshotFolderBox.LostFocus += (_, _) =>
-        {
-            Commit();
-            UpdateSnapshotUsage();
-        };
+        _snapshotFolderBox.TextChanged += (_, _) => RestartSave();
 
         _snapshotPickButton.Click += (_, _) => PickSnapshotFolder();
         _snapshotOpenButton.Click += (_, _) => OpenSnapshotFolder();

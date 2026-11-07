@@ -1310,7 +1310,12 @@ public partial class SummaryWindow : Window
             RenderPage(_index, animate: false);
         }
 
-        box.LostFocus += (_, _) => CommitHex();
+        // 不用 LostFocus：Avalonia 12 改了它的委托类型，11 编出来的绑定在 12 上会崩。
+        // 监听 IsFocused 属性变化，两个版本都认。
+        box.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == InputElement.IsFocusedProperty && !box.IsFocused) CommitHex();
+        };
         box.KeyDown += (_, e) =>
         {
             if (e.Key == Key.Enter) CommitHex();

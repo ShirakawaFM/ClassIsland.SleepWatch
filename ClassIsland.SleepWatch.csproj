@@ -1,10 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
+  <!-- 两套构建，同一份源码：
+       默认打正式版（2.1.0.1 / net8 / Avalonia 11），
+       -p:PreviewBuild=true 打 2.2 预览版（2.1.1.1 / net10 / Avalonia 12）。
+       必须分开打：Avalonia 的 XAML 编译产物和运行时版本强绑定，
+       11 编出来的 XAML 在 12 里会在 DynamicResourceExtension 上炸，反之亦然。 -->
+  <PropertyGroup Condition="'$(PreviewBuild)' == 'true'">
+    <TargetFramework>net10.0-windows</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(PreviewBuild)' != 'true'">
     <!-- 必须钉在正式版的框架上，别跟着预览版跑：
          ClassIsland 2.1.0.1（当前 Latest）是 net8.0 宿主，2.2 预览版（2.1.1.x / 2.1.2.0）才升到 net10。
          插件 TFM 高于宿主就加载不起来，这是硬约束，不是配置问题。 -->
     <TargetFramework>net8.0-windows</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
@@ -30,18 +42,28 @@
          写在 csproj 里会被覆盖，只能通过命令行全局属性传进去。 -->
   </PropertyGroup>
 
-  <ItemGroup>
-    <!-- 对应 ClassIsland 正式版 2.1.0.1。apiVersion 也要跟着写 2.1.0.1：
-         加载器只认「插件 apiVersion ≤ 本体版本」，写高了正式版会直接拒收。 -->
+  <ItemGroup Condition="'$(PreviewBuild)' == 'true'">
+    <!-- 2.2 预览版：SDK 2.1.1.1（档案模型改过，必须用这版编），Avalonia 12 带的是 SkiaSharp 3.x -->
+    <PackageReference Include="ClassIsland.PluginSdk" Version="2.1.1.1">
+      <ExcludeAssets>runtime; native</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(PreviewBuild)' != 'true'">
+    <!-- 正式版 2.1.0.1：apiVersion 也要跟着写 2.1.0.1，
+         加载器只认「插件 apiVersion ≤ 本体版本」，写高了正式版会直接拒收。
+         快照要往图上写中文，OpenCV 自带的 Hershey 字体只有 ASCII；
+         SkiaSharp 必须和宿主 Avalonia 11.3.17 用的版本一致（2.88.9）。 -->
     <PackageReference Include="ClassIsland.PluginSdk" Version="2.1.0.1">
       <ExcludeAssets>runtime; native</ExcludeAssets>
     </PackageReference>
+    <PackageReference Include="SkiaSharp" Version="2.88.9" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="OpenCvSharp4" Version="4.9.0.20240103" />
     <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.9.0.20240103" />
-    <!-- 快照要往图上写中文，OpenCV 自带的 Hershey 字体只有 ASCII。
-         SkiaSharp 必须和宿主 Avalonia 11.3.17 用的版本一致（2.88.9），
-         写成 3.x 会出现两套 SkiaSharp 同进程共存，运行时类型对不上。 -->
-    <PackageReference Include="SkiaSharp" Version="2.88.9" />
   </ItemGroup>
 
   <ItemGroup>

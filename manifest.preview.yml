@@ -1,0 +1,19 @@
+id: classisland.sleepwatch
+name: SleepWatch 课堂睡意监测
+description: 按「连续静置时长」判断谁睡着了：静置进疑似、撑够才确认，主界面显示确认沉睡人数与抬头率。不认人、不联网、默认不存画面。纯娱乐向，数字仅供参考。
+entranceAssembly: "ClassIsland.SleepWatch.dll"
+url: https://github.com/ShirakawaFM/ClassIsland.SleepWatch
+author: ShirakawaFM / 白川方明
+version: 1.5.0.0
+# 这是给 ClassIsland 2.2 预览版（Misha）用的构建：net10 + Avalonia 12 + SDK 2.1.1.1。
+# apiVersion 必须写 2.1.1.1，否则正式版用户会误装这个包然后加载失败。
+apiVersion: 2.1.1.1
+supportedOSPlatforms:
+  - Windows
+
+# 以下字段用于上架插件市场（PluginIndex），本地加载插件时用不到
+repoOwner: ShirakawaFM
+repoName: ClassIsland.SleepWatch
+assetsRoot: main/
+artifactName: ClassIsland.SleepWatch-2.2.cipx
+tagPattern: 1.*.*.*
