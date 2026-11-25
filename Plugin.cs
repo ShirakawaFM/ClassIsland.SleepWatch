@@ -6,14 +6,14 @@ using ClassIsland.Core.Abstractions;
 using ClassIsland.Core.Attributes;
 using ClassIsland.Core.Extensions.Registry;
 using ClassIsland.Shared;
-using ClassIsland.SleepWatch.Components;
-using ClassIsland.SleepWatch.Services;
-using ClassIsland.SleepWatch.Views;
+using ShirakawaFM.SleepWatch.Components;
+using ShirakawaFM.SleepWatch.Services;
+using ShirakawaFM.SleepWatch.Views;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace ClassIsland.SleepWatch;
+namespace ShirakawaFM.SleepWatch;
 
 /// <summary>
 /// 插件入口。负责注册组件、设置页和检测引擎。

@@ -11,7 +11,7 @@ using ClassIsland.Core.Abstractions.Services.NotificationProviders;
 using ClassIsland.Core.Models.Notification;
 using ClassIsland.Shared;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 /// <summary>
 /// 联动 ClassIsland 的强提醒。

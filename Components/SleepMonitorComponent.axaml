@@ -1,9 +1,9 @@
 <ci:ComponentBase
-    x:Class="ClassIsland.SleepWatch.Components.SleepMonitorComponent"
+    x:Class="ShirakawaFM.SleepWatch.Components.SleepMonitorComponent"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:ci="http://classisland.tech/schemas/xaml/core"
-    xmlns:local="using:ClassIsland.SleepWatch.Components"
+    xmlns:local="using:ShirakawaFM.SleepWatch.Components"
     x:TypeArguments="local:SleepMonitorSettings">
     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
         <Border x:Name="LevelDot"

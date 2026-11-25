@@ -3,7 +3,7 @@ using System.Linq;
 
 using Avalonia.Threading;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 /// <summary>
 /// 上下课状态机。整条链路就靠它决定「什么时候算上课、什么时候算下课」。

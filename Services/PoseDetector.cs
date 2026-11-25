@@ -4,7 +4,7 @@ using System.IO;
 
 using OpenCvSharp;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 /// <summary>一个关键点：坐标 + 置信度。</summary>
 public struct KeyPoint

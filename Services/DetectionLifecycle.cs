@@ -1,6 +1,6 @@
 using System;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 /// <summary>
 /// 自动启停的统一入口。

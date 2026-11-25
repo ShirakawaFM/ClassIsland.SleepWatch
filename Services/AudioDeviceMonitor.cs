@@ -3,7 +3,7 @@ using System.Threading;
 
 using Microsoft.Win32;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 /// <summary>
 /// 麦克风占用监测。

@@ -7,9 +7,9 @@ using Avalonia.Threading;
 using ClassIsland.Core.Abstractions.Controls;
 using ClassIsland.Core.Attributes;
 using ClassIsland.Shared;
-using ClassIsland.SleepWatch.Services;
+using ShirakawaFM.SleepWatch.Services;
 
-namespace ClassIsland.SleepWatch.Components;
+namespace ShirakawaFM.SleepWatch.Components;
 
 [ComponentInfo(
     "6f2a9c31-8d54-4b7e-9a02-3c5e1b7d8f40",

@@ -8,7 +8,7 @@ using OpenCvSharp;
 
 using SkiaSharp;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 /// <summary>快照路径换算。存的是相对路径，换台机器、换个盘符都不会失效。</summary>
 public static class SnapshotPaths

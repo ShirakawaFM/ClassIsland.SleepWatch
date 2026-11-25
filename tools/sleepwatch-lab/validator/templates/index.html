@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SleepWatch 模型实时升级系统</title>
+  <style>
+    :root {
+      --bg: #0f1115; --panel: #171a21; --panel-2: #1e222b; --line: #2b303b;
+      --text: #e5e7eb; --muted: #9ca3af; --teal: #2be8c4; --green: #22c55e;
+      --red: #ef4444; --orange: #f97316; --blue: #60a5fa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 28px; background: var(--bg); color: var(--text);
+      font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; line-height: 1.55;
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; }
+    header { margin-bottom: 20px; }
+    h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: .5px; }
+    .sub { color: var(--muted); font-size: 14px; }
+    .badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .badge { background: var(--panel-2); border: 1px solid var(--line); color: var(--muted);
+      padding: 4px 10px; border-radius: 999px; font-size: 12px; }
+    .badge b { color: var(--teal); font-weight: 600; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+      padding: 20px; margin-bottom: 18px; }
+    .panel h2 { margin: 0 0 14px; font-size: 17px; display: flex; align-items: center; gap: 10px; }
+    .step-no { display: inline-flex; align-items: center; justify-content: center;
+      width: 26px; height: 26px; border-radius: 50%; background: var(--teal);
+      color: #06221d; font-size: 13px; font-weight: 700; }
+    .dropzone { border: 2px dashed var(--line); border-radius: 12px; padding: 28px;
+      text-align: center; cursor: pointer; transition: .15s; background: #14171e; }
+    .dropzone:hover, .dropzone.drag { border-color: var(--teal); background: #16201f; }
+    .dropzone input { display: none; }
+    .dz-icon { font-size: 30px; color: var(--teal); margin-bottom: 6px; }
+    .dz-title { font-weight: 600; }
+    .dz-hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .toolbar { display: flex; gap: 10px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+    button { border: 0; border-radius: 8px; padding: 9px 18px; font-size: 14px; cursor: pointer;
+      font-weight: 600; transition: .15s; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary { background: var(--teal); color: #06221d; }
+    .btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+    .btn-ghost { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
+    .btn-ghost:hover { border-color: var(--muted); }
+    .queue { margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+    .queue-item { display: flex; align-items: center; gap: 8px; background: var(--panel-2);
+      border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+    .queue-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .remove { background: transparent; color: var(--muted); padding: 2px 6px; font-size: 16px; }
+    .remove:hover { color: var(--red); }
+    .note { color: var(--muted); font-size: 12px; }
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .metric { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+    .metric .k { color: var(--muted); font-size: 12px; }
+    .metric .v { font-size: 22px; font-weight: 700; margin-top: 3px; }
+    .metric .s { color: var(--muted); font-size: 11px; margin-top: 2px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; }
+    tr:last-child td { border-bottom: 0; }
+    tr.changed { background: rgba(249,115,22,.07); }
+    .thumb { width: 110px; height: 76px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); display: block; }
+    .chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .chip.asleep { background: rgba(43,232,196,.15); color: var(--teal); }
+    .chip.awake { background: rgba(96,165,250,.15); color: var(--blue); }
+    .chip.ok { background: rgba(34,197,94,.15); color: #86efac; }
+    .chip.ng { background: rgba(239,68,68,.15); color: #fca5a5; }
+    .chip.changed { background: rgba(249,115,22,.18); color: #fdba74; }
+    select { background: #11141a; color: var(--text); border: 1px solid var(--line);
+      border-radius: 6px; padding: 5px 8px; font-size: 12px; }
+    .conf { display: flex; align-items: center; gap: 7px; }
+    .conf .mini { width: 54px; height: 6px; background: #11141a; border-radius: 999px; overflow: hidden; }
+    .conf .mini i { display: block; height: 100%; background: var(--teal); }
+    .region { color: var(--muted); font-size: 11px; }
+    .progress { height: 12px; background: #11141a; border-radius: 999px; overflow: hidden; margin: 12px 0; }
+    .progress-fill { height: 100%; width: 0; border-radius: 999px; background: var(--teal); transition: width .4s; }
+    .train-head { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+    .log { background: #0b0d11; border: 1px solid var(--line); border-radius: 8px; padding: 12px;
+      max-height: 240px; overflow: auto; font-size: 11px; line-height: 1.5; color: #a7f3d0;
+      white-space: pre-wrap; word-break: break-all; }
+    .result-banner { background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.35);
+      color: #86efac; border-radius: 8px; padding: 12px 14px; margin-top: 12px; font-size: 13px; }
+    .result-banner.error { background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.3); color: #fca5a5; }
+    .hidden { display: none !important; }
+    @media (max-width: 860px) { .metrics { grid-template-columns: 1fr 1fr; } body { padding: 16px; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>SleepWatch 模型实时升级系统</h1>
+    <div class="sub">上传图片 → 旧模型检测 → 人工修正 → 确认入库并重训 → 新模型自动生效</div>
+    <div class="badges" id="infoBadges"></div>
+  </header>
+
+  <section class="panel" id="step1">
+    <h2><span class="step-no">1</span>上传图片并用当前模型检测</h2>
+    <div class="dropzone" id="uploadZone">
+      <input type="file" id="fileInput" accept="image/*" multiple />
+      <div class="dz-icon">⇪</div>
+      <div class="dz-title">拖拽图片到这里，点击选择，或直接按 Ctrl+V 粘贴</div>
+      <div class="dz-hint">支持多张；建议使用插件生成的人像裁剪图</div>
+    </div>
+    <div class="toolbar">
+      <button class="btn-primary" id="detectBtn">用旧模型检测</button>
+      <button class="btn-ghost" id="clearBtn">清空</button>
+      <span class="note" id="uploadCount">尚未选择图片</span>
+    </div>
+    <div class="queue" id="uploadQueue"></div>
+  </section>
+
+  <section class="panel hidden" id="step2">
+    <h2><span class="step-no">2</span>人工核对与修正</h2>
+    <div class="note">默认标签来自旧模型预测。请把识别错误的图片改为正确类别——只有确认后的标签会写入新训练集。</div>
+    <div class="metrics" id="reviewMetrics" style="margin-top:14px"></div>
+    <table>
+      <thead><tr><th>预览 / 区域</th><th>文件</th><th>旧模型预测</th><th>置信度</th><th>p_asleep</th><th>人工确认（可改）</th><th>状态</th></tr></thead>
+      <tbody id="reviewRows"></tbody>
+    </table>
+    <div class="toolbar">
+      <button class="btn-primary" id="commitBtn">确认上传并训练新模型</button>
+      <span class="note" id="changeCount"></span>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="step3">
+    <h2><span class="step-no">3</span>模型升级进度</h2>
+    <div class="train-head"><span id="trainStatus">准备中…</span><span id="trainVersion"></span></div>
+    <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+    <pre class="log" id="trainLog">等待训练任务启动…</pre>
+    <div id="trainResult"></div>
+  </section>
+
+  <section class="panel">
+    <h2>当前模型与版本历史</h2>
+    <div class="badges" id="datasetBadges"></div>
+    <table style="margin-top:12px">
+      <thead><tr><th>版本</th><th>时间</th><th>来源</th><th>阈值</th><th>验证集 P / R / F1</th><th>数据集</th><th>状态</th></tr></thead>
+      <tbody id="versionRows"></tbody>
+    </table>
+  </section>
+</div>
+
+<script>
+const state = { uploads: [], seq: 0, batchId: null, items: [], jobId: null, pollTimer: null };
+const $ = (s) => document.querySelector(s);
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+function fmtPct(v) { return (v === null || v === undefined) ? "—" : (v * 100).toFixed(1) + "%"; }
+
+function addFiles(fileList) {
+  for (const file of fileList) {
+    if (!file.type.startsWith("image/")) continue;
+    state.uploads.push({ id: ++state.seq, file });
+  }
+  renderUploads();
+}
+
+function renderUploads() {
+  const box = $("#uploadQueue");
+  box.innerHTML = state.uploads.map(x => `
+    <div class="queue-item">
+      <span class="name" title="${esc(x.file.name)}">${esc(x.file.name)}</span>
+      <button class="remove" data-id="${x.id}" title="移除">×</button>
+    </div>`).join("");
+  $("#uploadCount").textContent = state.uploads.length
+    ? `已选择 ${state.uploads.length} 张图片` : "尚未选择图片";
+  box.querySelectorAll(".remove").forEach(b => b.addEventListener("click", () => {
+    state.uploads = state.uploads.filter(f => f.id !== Number(b.dataset.id));
+    renderUploads();
+  }));
+}
+
+const uploadZone = $("#uploadZone");
+const fileInput = $("#fileInput");
+uploadZone.addEventListener("click", (e) => { if (e.target !== fileInput) fileInput.click(); });
+fileInput.addEventListener("change", () => { addFiles(fileInput.files); fileInput.value = ""; });
+uploadZone.addEventListener("dragover", (e) => { e.preventDefault(); uploadZone.classList.add("drag"); });
+uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("drag"));
+uploadZone.addEventListener("drop", (e) => {
+  e.preventDefault(); uploadZone.classList.remove("drag"); addFiles(e.dataTransfer.files);
+});
+document.addEventListener("paste", (e) => {
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (["INPUT", "SELECT", "TEXTAREA"].includes(tag)) return;
+  const cd = e.clipboardData;
+  if (!cd) return;
+  const items = Array.from(cd.items || []);
+  const sources = items.length ? items : Array.from(cd.files || []);
+  const files = [];
+  for (const item of sources) {
+    if (item.kind && item.kind !== "file") continue;
+    const mime = (item.type || "").toLowerCase();
+    if (!mime.startsWith("image/")) continue;
+    const blob = typeof item.getAsFile === "function" ? item.getAsFile() : item;
+    if (!blob) continue;
+    const d = new Date();
+    const p = (n, len = 2) => String(n).padStart(len, "0");
+    const name = `粘贴_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}_${p(d.getMilliseconds(),3)}.${mime.split("/")[1] || "png"}`;
+    files.push(new File([blob], name, { type: mime }));
+  }
+  if (!files.length) return;
+  e.preventDefault();
+  addFiles(files);
+});
+
+$("#clearBtn").addEventListener("click", () => {
+  state.uploads = []; state.items = []; state.batchId = null;
+  renderUploads();
+  $("#step2").classList.add("hidden");
+});
+
+function postForm(path, form) {
+  return fetch(path, { method: "POST", body: form }).then(async r => {
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || "请求失败");
+    return d;
+  });
+}
+function postJSON(path, payload) {
+  return fetch(path, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  }).then(async r => {
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || "请求失败");
+    return d;
+  });
+}
+function getJSON(path) {
+  return fetch(path).then(async r => {
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || "请求失败");
+    return d;
+  });
+}
+
+$("#detectBtn").addEventListener("click", async () => {
+  if (!state.uploads.length) { alert("请先上传图片"); return; }
+  const btn = $("#detectBtn");
+  btn.disabled = true; btn.textContent = "检测中…";
+  const form = new FormData();
+  state.uploads.forEach(x => form.append("files", x.file, x.file.name));
+  try {
+    const data = await postForm("/api/detect", form);
+    state.batchId = data.batch_id;
+    state.items = data.results.map(r => ({
+      ...r, original_pred: r.pred_label, final_label: r.pred_label,
+    }));
+    renderReview();
+    $("#step2").classList.remove("hidden");
+    $("#step2").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (err) {
+    alert(err.message || "检测失败");
+  } finally {
+    btn.disabled = false; btn.textContent = "用旧模型检测";
+  }
+});
+
+function reviewMetrics(items) {
+  let tp = 0, fp = 0, fn = 0, tn = 0;
+  items.forEach(x => {
+    if (x.final_label === "asleep" && x.pred_label === "asleep") tp++;
+    else if (x.final_label === "awake" && x.pred_label === "asleep") fp++;
+    else if (x.final_label === "asleep" && x.pred_label === "awake") fn++;
+    else tn++;
+  });
+  const precision = tp + fp ? tp / (tp + fp) : null;
+  const recall = tp + fn ? tp / (tp + fn) : null;
+  const f1 = precision !== null && recall !== null && precision + recall
+    ? 2 * precision * recall / (precision + recall) : null;
+  const acc = items.length ? (tp + tn) / items.length : null;
+  const cards = [
+    ["旧模型保真率", precision, "TP/(TP+FP)"], ["旧模型准确率", acc, "(TP+TN)/N"],
+    ["旧模型召回率", recall, "TP/(TP+FN)"], ["旧模型 F1", f1, "2PR/(P+R)"],
+    ["混淆 TP/FP/FN/TN", `${tp}/${fp}/${fn}/${tn}`, "睡着为正类"],
+  ];
+  $("#reviewMetrics").innerHTML = cards.map(([k, v, s]) => `
+    <div class="metric"><div class="k">${k}</div>
+      <div class="v">${typeof v === "number" ? fmtPct(v) : (v ?? "—")}</div>
+      <div class="s">${s}</div></div>`).join("");
+}
+
+function renderReview() {
+  reviewMetrics(state.items);
+  const changed = state.items.filter(x => x.final_label !== x.original_pred).length;
+  $("#changeCount").textContent = changed
+    ? `已修正 ${changed} 张，共 ${state.items.length} 张待入库`
+    : `共 ${state.items.length} 张待入库，尚未修正`;
+
+  $("#reviewRows").innerHTML = state.items.map(x => {
+    const isChanged = x.final_label !== x.original_pred;
+    return `<tr class="${isChanged ? "changed" : ""}">
+      <td><img class="thumb" src="${x.thumb}" alt="预览" /></td>
+      <td>${esc(x.filename)}<div class="region">区域 ${x.region.w}×${x.region.h} · 整图</div></td>
+      <td><span class="chip ${x.pred_label}">${x.pred_label === "asleep" ? "睡着" : "未睡"}</span></td>
+      <td><div class="conf"><div class="mini"><i style="width:${x.confidence * 100}%"></i></div>${fmtPct(x.confidence)}</div></td>
+      <td>${fmtPct(x.p_asleep)}</td>
+      <td><select data-id="${x.id}">
+        <option value="asleep" ${x.final_label === "asleep" ? "selected" : ""}>睡着</option>
+        <option value="awake" ${x.final_label === "awake" ? "selected" : ""}>未睡</option>
+      </select></td>
+      <td>${isChanged ? '<span class="chip changed">已修正</span>' : '<span class="chip ok">沿用预测</span>'}</td>
+    </tr>`;
+  }).join("");
+
+  $("#reviewRows").querySelectorAll("select").forEach(sel => {
+    sel.addEventListener("change", (e) => {
+      const item = state.items.find(i => i.id === e.target.dataset.id);
+      if (item) { item.final_label = e.target.value; renderReview(); }
+    });
+  });
+}
+
+$("#commitBtn").addEventListener("click", async () => {
+  const changed = state.items.filter(x => x.final_label !== x.original_pred).length;
+  if (!confirm(`确认把这 ${state.items.length} 张图片（其中 ${changed} 张已人工修正）写入训练集并开始训练新模型？训练完成后新模型会自动生效。`)) return;
+  const btn = $("#commitBtn");
+  btn.disabled = true; btn.textContent = "提交中…";
+  try {
+    const data = await postJSON("/api/commit", {
+      batch_id: state.batchId,
+      items: state.items.map(x => ({ id: x.id, final_label: x.final_label })),
+    });
+    state.jobId = data.job_id;
+    localStorage.setItem("sleepwatch_job", data.job_id);
+    $("#step3").classList.remove("hidden");
+    $("#step3").scrollIntoView({ behavior: "smooth", block: "start" });
+    startPolling();
+  } catch (err) {
+    alert(err.message || "提交失败");
+  } finally {
+    btn.disabled = false; btn.textContent = "确认上传并训练新模型";
+  }
+});
+
+function renderTrain(job) {
+  const statusMap = { queued: "排队中", running: "训练中", done: "已完成", failed: "失败" };
+  $("#trainStatus").textContent = `状态：${statusMap[job.status] || job.status} · 进度 ${job.progress}%`;
+  $("#trainVersion").textContent = `目标版本 ${job.version}`;
+  $("#progressFill").style.width = `${job.progress}%`;
+  $("#trainLog").textContent = (job.logs || []).slice(-40).join("\n") || "等待日志…";
+
+  const box = $("#trainResult");
+  if (job.status === "done") {
+    const m = job.metrics || {};
+    box.innerHTML = `<div class="result-banner">模型已升级到 <b>${esc(job.version)}</b>；新阈值 <b>${m.threshold ?? "—"}</b>，验证集精确率 <b>${fmtPct(m.precision_asleep)}</b>、召回率 <b>${fmtPct(m.recall_asleep)}</b>、F1 <b>${fmtPct(m.f1_asleep)}</b>。下一次检测将自动使用新模型。</div>`;
+  } else if (job.status === "failed") {
+    box.innerHTML = `<div class="result-banner error">训练失败：${esc((job.error || "未知错误").split("\n").slice(-2).join(" "))}</div>`;
+  }
+}
+
+function stopPolling() {
+  if (state.pollTimer) { clearTimeout(state.pollTimer); state.pollTimer = null; }
+}
+function startPolling() {
+  stopPolling();
+  const tick = async () => {
+    if (!state.jobId) return;
+    try {
+      const job = await getJSON(`/api/train/status?job_id=${state.jobId}`);
+      renderTrain(job);
+      if (job.status === "done" || job.status === "failed") {
+        stopPolling();
+        localStorage.removeItem("sleepwatch_job");
+        loadInfo(); loadVersions();
+      } else {
+        state.pollTimer = setTimeout(tick, 2500);
+      }
+    } catch (err) {
+      $("#trainLog").textContent = `状态查询失败：${err.message}`;
+      state.pollTimer = setTimeout(tick, 5000);
+    }
+  };
+  tick();
+}
+
+async function loadInfo() {
+  try {
+    const info = await getJSON("/api/info");
+    $("#infoBadges").innerHTML = `
+      <span class="badge">当前版本 <b>${esc(info.version)}</b></span>
+      <span class="badge">判定阈值 <b>${info.threshold}</b></span>
+      <span class="badge">输入 <b>${info.input_shape.slice(1).join("×")}</b></span>
+      <span class="badge">单次最多 <b>${info.max_files}</b> 张</span>
+      <span class="badge">累计样本 <b>${info.dataset_counts.train.asleep + info.dataset_counts.val.asleep}</b> 睡 / <b>${info.dataset_counts.train.awake + info.dataset_counts.val.awake}</b> 未睡</span>`;
+  } catch (e) { /* ignore */ }
+}
+
+async function loadVersions() {
+  try {
+    const data = await getJSON("/api/versions");
+    $("#versionRows").innerHTML = data.versions.map(v => {
+      const m = v.metrics || {};
+      const counts = v.dataset_counts || {};
+      const total = counts.train ? Object.values(counts.train).reduce((a, b) => a + b, 0) : 0;
+      const isCurrent = v.version === data.current;
+      return `<tr>
+        <td><b>${esc(v.version)}</b>${isCurrent ? ' <span class="chip ok">生效中</span>' : ""}</td>
+        <td>${esc(v.created_at)}</td>
+        <td>${esc(v.source || "—")}</td>
+        <td>${v.threshold ?? "—"}</td>
+        <td>${fmtPct(m.precision_asleep)} / ${fmtPct(m.recall_asleep)} / ${fmtPct(m.f1_asleep)}</td>
+        <td>${total} 张</td>
+        <td>${esc(v.base_version ? "基于 " + v.base_version : "初始版本")}</td>
+      </tr>`;
+    }).join("");
+  } catch (e) { /* ignore */ }
+}
+
+loadInfo();
+loadVersions();
+const savedJob = localStorage.getItem("sleepwatch_job");
+if (savedJob) {
+  state.jobId = savedJob;
+  $("#step3").classList.remove("hidden");
+  startPolling();
+}
+</script>
+</body>
+</html>

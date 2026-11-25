@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 /// <summary>
 /// 机位预设。教室的机位差别很大：吊在天花板后方俯拍、讲台正对着拍、或者斜着架在角上。

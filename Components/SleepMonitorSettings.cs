@@ -1,4 +1,4 @@
-namespace ClassIsland.SleepWatch.Components;
+namespace ShirakawaFM.SleepWatch.Components;
 
 /// <summary>
 /// 组件的独立设置。主界面上每放一个本组件，就有一份自己的设置。

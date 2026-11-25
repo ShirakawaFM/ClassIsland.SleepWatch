@@ -2,7 +2,7 @@ using System;
 
 using OpenCvSharp;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 /// <summary>
 /// 分块推理的调度。

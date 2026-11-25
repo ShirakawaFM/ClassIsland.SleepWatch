@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 /// <summary>日志分级。数值越大越啰嗦，配置里存的是名字。</summary>
 public enum LogLevel

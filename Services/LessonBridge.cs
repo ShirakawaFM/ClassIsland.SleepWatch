@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using ClassIsland.Core.Abstractions.Services;
 using ClassIsland.Shared;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 /// <summary>
 /// 课表事件桥：把 <see cref="LessonClock"/> 的判定结果，分发给组件、设置页、课后总结三处。

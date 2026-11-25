@@ -5,7 +5,7 @@ using System.Text.Json;
 
 using Avalonia.Media;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 /// <summary>一套配色。界面里所有颜色都从这里来，不散落在各个控件上。</summary>
 public sealed class Palette

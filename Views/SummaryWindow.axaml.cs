@@ -16,10 +16,10 @@ using Avalonia.Media.Imaging;
 using Avalonia.Styling;
 using Avalonia.Threading;
 
-using ClassIsland.SleepWatch.Controls;
-using ClassIsland.SleepWatch.Services;
+using ShirakawaFM.SleepWatch.Controls;
+using ShirakawaFM.SleepWatch.Services;
 
-namespace ClassIsland.SleepWatch.Views;
+namespace ShirakawaFM.SleepWatch.Views;
 
 /// <summary>
 /// 课后总结窗口。

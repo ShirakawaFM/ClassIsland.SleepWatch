@@ -16,11 +16,11 @@ using Avalonia.Threading;
 using ClassIsland.Core.Abstractions.Controls;
 using ClassIsland.Core.Attributes;
 using ClassIsland.Shared;
-using ClassIsland.SleepWatch.Services;
+using ShirakawaFM.SleepWatch.Services;
 
-namespace ClassIsland.SleepWatch.Views;
+namespace ShirakawaFM.SleepWatch.Views;
 
-[SettingsPageInfo("classisland.sleepwatch.settings", "睡意监测")]
+[SettingsPageInfo("sleepwatch.shirakawafm.settings", "睡意监测")]
 public partial class SleepWatchSettingsPage : SettingsPageBase
 {
     private TextBox _sourceBox = null!;

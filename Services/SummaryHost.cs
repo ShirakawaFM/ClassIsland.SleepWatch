@@ -3,9 +3,9 @@ using System.Linq;
 
 using Avalonia.Threading;
 
-using ClassIsland.SleepWatch.Views;
+using ShirakawaFM.SleepWatch.Views;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 /// <summary>
 /// 课后总结的调度器。

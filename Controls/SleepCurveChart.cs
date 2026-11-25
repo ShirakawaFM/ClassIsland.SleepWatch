@@ -7,9 +7,9 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 
-using ClassIsland.SleepWatch.Services;
+using ShirakawaFM.SleepWatch.Services;
 
-namespace ClassIsland.SleepWatch.Controls;
+namespace ShirakawaFM.SleepWatch.Controls;
 
 /// <summary>
 /// 人数变化曲线。故意用柱状像素条而不是平滑曲线 —— 跟整页的像素风格统一，

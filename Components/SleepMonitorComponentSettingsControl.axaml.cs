@@ -4,7 +4,7 @@ using Avalonia.Controls;
 
 using ClassIsland.Core.Abstractions.Controls;
 
-namespace ClassIsland.SleepWatch.Components;
+namespace ShirakawaFM.SleepWatch.Components;
 
 public partial class SleepMonitorComponentSettingsControl : ComponentBase<SleepMonitorSettings>
 {

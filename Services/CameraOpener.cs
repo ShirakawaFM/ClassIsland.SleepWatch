@@ -5,7 +5,7 @@ using System.Threading;
 
 using OpenCvSharp;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 /// <summary>打开失败的大致原因，用来给用户一句人话。</summary>
 public enum CameraFailReason

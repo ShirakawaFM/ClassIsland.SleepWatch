@@ -4,7 +4,7 @@ using System.Linq;
 
 using Microsoft.Win32;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 /// <summary>一个摄像头设备。</summary>
 public sealed class CameraDevice

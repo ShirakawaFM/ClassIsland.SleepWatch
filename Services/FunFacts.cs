@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 /// <summary>一条趣味条目。Tag 是左上角那枚小标签，Text 是正文。</summary>
 public sealed class FactItem

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Avalonia.Controls;
 using Avalonia.Threading;
 
-namespace ClassIsland.SleepWatch.Controls;
+namespace ShirakawaFM.SleepWatch.Controls;
 
 /// <summary>
 /// 一个跟着显示器刷新走的帧驱动器。

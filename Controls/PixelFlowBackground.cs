@@ -7,7 +7,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 
-namespace ClassIsland.SleepWatch.Controls;
+namespace ShirakawaFM.SleepWatch.Controls;
 
 /// <summary>
 /// 会流动的像素背景。

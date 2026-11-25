@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 using OpenCvSharp;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 /// <summary>
 /// 一个目标的判定状态。

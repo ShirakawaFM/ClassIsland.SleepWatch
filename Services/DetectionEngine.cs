@@ -7,7 +7,7 @@ using OpenCvSharp;
 
 using SkiaSharp;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 public enum SleepLevel
 {

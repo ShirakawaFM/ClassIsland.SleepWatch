@@ -7,9 +7,9 @@ using ClassIsland.Core.Abstractions.Services;
 using ClassIsland.Shared;
 using ClassIsland.Shared.Models.Profile;
 
-using ClassIsland.SleepWatch.Services;
+using ShirakawaFM.SleepWatch.Services;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 /// <summary>
 /// 课表同步。

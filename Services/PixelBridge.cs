@@ -2,7 +2,7 @@ using OpenCvSharp;
 
 using SkiaSharp;
 
-namespace ClassIsland.SleepWatch.Services;
+namespace ShirakawaFM.SleepWatch.Services;
 
 /// <summary>
 /// OpenCV 的 Mat 交给 SkiaSharp 之前的格式桥。
